@@ -2,7 +2,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { source, WINDOWS, lireConfig, lireJson, DONNEES, ICI, executer } = require('./commun');
+const { source, WINDOWS, lireConfig, ecrireConfig, lireJson, DONNEES, ICI, executer } = require('./commun');
 const { dossierVoix } = require('./taches/voix');
 
 // « a/… » = <file de tâches>\pc-vers-cloud, « v/… » = dossier des voix (références)
@@ -96,9 +96,25 @@ function voixDisponibles() {
   const d = racines().v;
   let f = [];
   try { f = fs.readdirSync(d).filter((x) => /^reference.*\.(wav|mp3)$/i.test(x)); } catch (e) { /* pas de dossier */ }
+  // les voix retirées par l'utilisateur n'apparaissent plus nulle part (le fichier n'est pas touché)
+  const masquees = lireConfig().voixMasquees || [];
+  f = f.filter((x) => !masquees.includes(x));
   // la voix de référence choisie dans les réglages, sinon la première trouvée
-  const choisie = lireConfig().voixReference || f.find((x) => /hd/i.test(x)) || f[0];
+  const pref = lireConfig().voixReference;
+  const choisie = (f.includes(pref) && pref) || f.find((x) => /hd/i.test(x)) || f[0];
   return f.map((x) => ({ nom: x, chemin: `v/${x}`, officielle: x === choisie }));
+}
+
+// retire (ou remet) une voix dans les listes
+function masquerVoix(nom, masquer) {
+  const c = lireConfig();
+  const l = new Set(c.voixMasquees || []);
+  if (masquer) l.add(String(nom)); else if (nom === '*') l.clear(); else l.delete(String(nom));
+  const o = { voixMasquees: [...l] };
+  if (masquer && c.voixReference === nom) o.voixReference = '';
+  if (masquer && c.voixParDefaut === nom) o.voixParDefaut = '';
+  ecrireConfig(o);
+  return o.voixMasquees.length;
 }
 
 function ouvrir(rel) {
@@ -108,4 +124,4 @@ function ouvrir(rel) {
   return true;
 }
 
-module.exports = { lister, resoudre, servirFichier, ouvrir, voixDisponibles };
+module.exports = { lister, resoudre, servirFichier, ouvrir, voixDisponibles, masquerVoix };

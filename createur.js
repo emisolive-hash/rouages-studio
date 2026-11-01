@@ -60,7 +60,11 @@ Tout ce que tu écris doit être exact : pas de fait inventé, pas d'exagératio
 }
 
 // ---------- idées ----------
-function lireIdees() { return lireJson(F_IDEES, { propositions: [], selection: [], dejaVues: [] }); }
+function lireIdees() {
+  const e = lireJson(F_IDEES, { propositions: [], selection: [], dejaVues: [] });
+  if (!Array.isArray(e.boite)) e.boite = [];
+  return e;
+}
 
 async function proposerIdees(categories, parCategorie = 4) {
   const config = lireConfig();
@@ -91,6 +95,23 @@ function selectionner(ids) {
   ecrireJson(F_IDEES, etat);
 }
 
+// La boîte à idées : les idées gardées, en attente d'être lancées.
+// ajouter : déplace des propositions dans la boîte ; retirer : les enlève de la boîte.
+function boite(action, ids) {
+  const etat = lireIdees();
+  ids = Array.isArray(ids) ? ids : [];
+  if (action === 'ajouter') {
+    const venues = etat.propositions.filter((p) => ids.includes(p.id) && !etat.boite.some((b) => b.id === p.id));
+    etat.boite = [...etat.boite, ...venues.map((p) => Object.assign({}, p, { ajoutee: Date.now() }))];
+    etat.propositions = etat.propositions.filter((p) => !ids.includes(p.id));
+    etat.selection = etat.selection.filter((x) => !ids.includes(x));
+  } else if (action === 'retirer') {
+    etat.boite = etat.boite.filter((b) => !ids.includes(b.id));
+  } else throw new Error('action inconnue');
+  ecrireJson(F_IDEES, etat);
+  return etat.boite.length;
+}
+
 // ---------- projets (une vidéo en création) ----------
 function projets() { return lireJson(F_PROJETS, []); }
 function sauverProjet(p) {
@@ -116,7 +137,7 @@ function prochainEp(tachesConnues) {
 // Crée les projets à partir des idées choisies et lance l'écriture des textes.
 function creer(idsIdees, options, tachesConnues) {
   const etat = lireIdees();
-  const choisies = etat.propositions.filter((p) => idsIdees.includes(p.id));
+  const choisies = [...etat.boite, ...etat.propositions].filter((p) => idsIdees.includes(p.id));
   const crees = [];
   for (const idee of choisies) {
     const p = {
@@ -131,6 +152,7 @@ function creer(idsIdees, options, tachesConnues) {
   }
   etat.selection = etat.selection.filter((x) => !idsIdees.includes(x));
   etat.propositions = etat.propositions.filter((x) => !idsIdees.includes(x.id));
+  etat.boite = etat.boite.filter((x) => !idsIdees.includes(x.id));
   ecrireJson(F_IDEES, etat);
   return crees;
 }
@@ -270,7 +292,7 @@ function reprendre() {
 
 function etat() {
   const i = lireIdees();
-  return { idees: i.propositions, selection: i.selection, projets: projets().slice().reverse().map((p) => Object.assign({}, p, { travaille: enCours.has(p.id), scene: undefined, aScene: !!p.scene })) };
+  return { idees: i.propositions, selection: i.selection, boite: i.boite, projets: projets().slice().reverse().map((p) => Object.assign({}, p, { travaille: enCours.has(p.id), scene: undefined, aScene: !!p.scene })) };
 }
 
-module.exports = { proposerIdees, selectionner, creer, actionProjet, etat, reprendre, noterAvis, quandDepose };
+module.exports = { proposerIdees, selectionner, boite, creer, actionProjet, etat, reprendre, noterAvis, quandDepose };

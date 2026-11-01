@@ -32,6 +32,7 @@ const DEFAUT = {
   ffmpeg: '',                        // vide = ffmpeg du PATH (ou winget)
   python: '',                        // vide = venv du dossier des voix s'il existe, sinon « python »
   dossierVoix: '',                   // dossier qui contient voix.py (facultatif)
+  voixMasquees: [],                  // voix retirées de la liste (le fichier reste sur le disque)
   voixReference: '',                 // fichier reference*.wav à mettre en avant (vide = automatique)
   crf: 16,
   essaisParPlan: 3,
@@ -47,7 +48,7 @@ const DEFAUT = {
   dureeCible: 30,                    // secondes
   commandeVoix: 'python voix.py {texte} 3 {ep} --ref {voix}',
   voixParDefaut: '',                 // fichier de référence (vide = celle mise en avant)
-  publication: { outil: 'metricool', jeton: '', compte: '' },
+  publication: { outil: 'metricool', jeton: '', utilisateur: '', compte: '', compteNom: '' },
 };
 function lireConfig() {
   let c = {};

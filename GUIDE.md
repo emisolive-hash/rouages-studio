@@ -52,16 +52,24 @@ un fichier partagé ou un message public. Demande-moi avant toute action que tu 
 Dans le lecteur, « Ouvrir » lance le fichier avec le lecteur de Windows.
 
 **Voix** : ta voix de référence et les dernières voix générées.
+La croix à côté d'une voix la **retire de l'app** (elle n'apparaît plus nulle part, le fichier reste sur ton disque) ; « les réafficher » la remet.
 
-**Idées** (clé Claude) : choisis tes catégories, « Proposer des idées », coche celles qui te plaisent.
+**Idées** (clé Claude) : choisis tes catégories, « Proposer des idées », coche celles qui te plaisent, puis **« Ajouter à la boîte »**.
 
-**Génération** (clé Claude) : choisis la voix et qui décide (« Je relis le texte » ou « L'IA fait tout »), puis « Lancer la création ».
+**Génération** (clé Claude) : la **boîte à idées** garde tes idées aussi longtemps que tu veux.
+Coche celles à lancer maintenant, choisis la voix (▶ pour l'écouter) et qui décide (« Je relis le texte » ou « L'IA fait tout »), puis « Lancer ».
+La croix retire une idée de la boîte.
 Claude écrit le texte et le découpage ; en mode relecture, tu corriges avec une remarque ou tu valides.
 Ensuite Claude construit la scène Blender et dépose la voix et la scène dans la file : ton PC les fabrique comme le reste.
 Avec « L'app apprend de mes remarques », tes remarques servent aux vidéos suivantes.
 La dépense Claude du mois s'affiche en haut de la liste (chaque idée ou texte coûte quelques centimes).
 
-**Publication** (point orange) : les légendes prêtes à copier, et ton compte de publication (gardé sur ce PC).
+**Publication** (point orange) : les légendes prêtes à copier, et la connexion à **Metricool** :
+1. « Ouvrir Metricool », connecte-toi, puis ton profil (en haut à droite) › Paramètres du compte › onglet **API**.
+2. Copie le jeton (« Access token ») et ton « User ID », colle-les dans l'app, « Connecter ».
+3. L'app trouve tes marques toute seule ; s'il y en a plusieurs, clique sur celle à utiliser.
+
+L'API de Metricool demande son offre Advanced (ou plus). Le jeton reste dans `donnees\config.json`, sur ce PC.
 La publication en un clic et les stats arrivent ensuite.
 
 La ligne éditoriale, les catégories, la durée visée et la commande de voix se règlent dans `donnees\config.json`

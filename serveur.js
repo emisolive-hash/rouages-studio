@@ -9,9 +9,10 @@ const { Moteur } = require('./moteur');
 const medias = require('./medias');
 const installation = require('./installation');
 const createur = require('./createur');
+const publication = require('./publication');
 const { depenses } = require('./claude');
 
-const VERSION = '1.4.1';
+const VERSION = '1.5.0';
 const config = lireConfig();
 const PORT = Number(process.env.ROUAGES_PORT || config.port || 4747);
 const ADRESSE = `http://localhost:${PORT}`;
@@ -52,7 +53,7 @@ const serveur = http.createServer(async (req, res) => {
       const c = lireConfig();
       return repondre(res, 200, Object.assign({ version: VERSION, premierLancementFait: !!c.premierLancementFait, source: source(c) }, moteur.public()));
     }
-    if (req.method === 'GET' && url.pathname === '/api/medias') return repondre(res, 200, { episodes: medias.lister(), voix: medias.voixDisponibles() });
+    if (req.method === 'GET' && url.pathname === '/api/medias') return repondre(res, 200, { episodes: medias.lister(), voix: medias.voixDisponibles(), voixRetirees: (lireConfig().voixMasquees || []).length });
     if (req.method === 'GET' && url.pathname.startsWith('/media/')) {
       const p = medias.resoudre(decodeURIComponent(url.pathname.slice(7)));
       if (!p) return repondre(res, 404, { erreur: 'fichier introuvable' });
@@ -87,12 +88,12 @@ const serveur = http.createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/api/creation') {
       const c = lireConfig();
       return repondre(res, 200, Object.assign(createur.etat(), {
-        cle: !!c.cleClaude, depenses: depenses(), voix: medias.voixDisponibles(),
+        cle: !!c.cleClaude, depenses: depenses(), voix: medias.voixDisponibles(), voixRetirees: (c.voixMasquees || []).length,
         reglages: { categories: c.categories, modeCreation: c.modeCreation, apprendre: c.apprendre, ligneEditoriale: c.ligneEditoriale, dureeCible: c.dureeCible, voixParDefaut: c.voixParDefaut, modeleClaude: c.modeleClaude },
-        publication: { outil: (c.publication || {}).outil, compte: (c.publication || {}).compte, jetonEnregistre: !!(c.publication || {}).jeton },
+        publication: { outil: (c.publication || {}).outil, compte: (c.publication || {}).compte, compteNom: (c.publication || {}).compteNom, utilisateur: (c.publication || {}).utilisateur, jetonEnregistre: !!(c.publication || {}).jeton },
       }));
     }
-    if (req.method === 'POST' && (url.pathname.startsWith('/api/creation/') || url.pathname === '/api/publication/reglages')) {
+    if (req.method === 'POST' && (url.pathname.startsWith('/api/creation/') || url.pathname.startsWith('/api/publication/') || url.pathname === '/api/voix/retirer')) {
       if (req.headers['x-rouages'] !== '1') return repondre(res, 403, { erreur: 'refusé' });
       const corps = await lireCorps(req);
       const quoi = url.pathname.split('/').pop();
@@ -102,6 +103,10 @@ const serveur = http.createServer(async (req, res) => {
           ecrireConfig({ publication: { outil: corps.outil || avant.outil, compte: corps.compte ?? avant.compte, jeton: corps.jeton ? String(corps.jeton).trim() : avant.jeton } });
           return repondre(res, 200, { ok: true });
         }
+        if (url.pathname === '/api/publication/connecter') return repondre(res, 200, await publication.connecter(corps));
+        if (url.pathname === '/api/publication/deconnecter') return repondre(res, 200, publication.deconnecter());
+        if (url.pathname === '/api/voix/retirer') return repondre(res, 200, { retirees: medias.masquerVoix(corps.nom, corps.retirer !== false) });
+        if (quoi === 'boite') return repondre(res, 200, { boite: createur.boite(corps.action, corps.ids) });
         if (quoi === 'idees') return repondre(res, 200, await createur.proposerIdees(corps.categories, corps.parCategorie));
         if (quoi === 'selection') { createur.selectionner(corps.ids); return repondre(res, 200, { ok: true }); }
         if (quoi === 'creer') return repondre(res, 200, { projets: createur.creer(corps.ids || [], corps, moteur.taches).length });
