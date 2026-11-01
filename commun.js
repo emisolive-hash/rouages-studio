@@ -36,7 +36,8 @@ const DEFAUT = {
   voixReference: '',                 // fichier reference*.wav à mettre en avant (vide = automatique)
   crf: 16,
   essaisParPlan: 3,
-  reessaiAutoMinutes: 30,            // une tâche mise de côté est retentée toute seule après ce délai
+  reessaiAutoMinutes: 30,
+  pauseApresPlantageGpu: 120,        // secondes de repos du GPU avant de retenter un plan qui a planté            // une tâche mise de côté est retentée toute seule après ce délai
   empecherVeille: true,
   voixAvantRendus: true,             // les voix (courtes) passent avant les rendus 3D
   // ---- création avec Claude ----

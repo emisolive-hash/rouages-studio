@@ -21,8 +21,12 @@ function trouverPython(config) {
   const d = dossierVoix(config);
   if (!d) return WINDOWS ? 'python' : 'python3';
   const exe = WINDOWS ? ['Scripts', 'python.exe'] : ['bin', 'python'];
+  // un environnement Python à côté de voix.py (.venv, venv, env, env-…) : il a les modules de la voix
   for (const base of [d, path.dirname(d)]) {
-    for (const v of ['.venv', 'venv', 'env']) {
+    let noms = [];
+    try { noms = fs.readdirSync(base).filter((n) => /^\.?(venv|env)([-_].*)?$/i.test(n)); } catch (e) { /* rien */ }
+    noms.sort((a, b) => a.length - b.length);
+    for (const v of noms) {
       const p = path.join(base, v, ...exe);
       if (fs.existsSync(p)) return p;
     }

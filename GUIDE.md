@@ -114,6 +114,7 @@ Le script Blender doit lire `--plan N` et `--sortie <préfixe>` après `--`, et 
 ### Une demande de voix (`epNN-voix`)
 
 `A-FAIRE.md` contient la commande, par exemple `python voix.py ep12.txt 3 ep12 --ref reference.wav`.
+Si un environnement Python (`venv`, `env-…`) est à côté de `voix.py`, l'app l'utilise automatiquement.
 L'app copie le texte dans le **dossier des voix** (celui qui contient ton `voix.py`, à régler dans la roue dentée)
 et y lance la commande, puis range les fichiers produits.
 
@@ -135,7 +136,9 @@ Avec une file sur GitHub, seules la récupération des nouvelles tâches et l'en
 
 - **Tu cliques « Mettre en pause »** : seule l'image en cours de calcul est à refaire.
 - **Le PC s'éteint ou plante** : au redémarrage, les images coupées sont détectées et refaites, le reste est gardé.
-- **Blender plante** (mémoire de la carte graphique) : l'app relance le plan (3 essais), puis propose « Réessayer ».
+- **Blender plante** : l'app relance le plan (3 essais) à l'image près. Si c'est la carte graphique qui plante (« illegal address », erreur 700),
+  elle la laisse refroidir 2 minutes et passe d'OptiX à CUDA, plus stable, pour la suite de la vidéo.
+  Une vidéo mise de côté est retentée toute seule 30 minutes plus tard (ou bouton « Réessayer »).
 - **Internet coupe** : la vidéo est gardée et renvoyée dès que ça revient.
 - **Un autre Blender tourne déjà** : l'app attend qu'il ait fini (ou bouton « Prendre la main »).
 

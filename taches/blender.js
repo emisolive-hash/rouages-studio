@@ -92,10 +92,12 @@ async function rendrePlan(ctx, plan) {
     suivi.derniereImage = l.length ? path.join(dossierImages, l[l.length - 1].f) : null;
   }
   majImages();
+  let plantageGpu = false;
+  if (meta.cuda) journal(`${t.ep} plan ${plan} : rendu en CUDA (le GPU avait planté en OptiX).`);
   const { enfant, fin } = lancerLong(blender, [
     '-b', '--python-exit-code', '1', '-P', path.join(ICI, 'lanceur_blender.py'), '--',
     '--plan', String(plan), '--sortie', path.join(dossierImages, prefixe),
-  ], { cwd: src, env: { ROUAGES_SCENE: path.join(src, t.script) } }, (ligne) => {
+  ], { cwd: src, env: Object.assign({ ROUAGES_SCENE: path.join(src, t.script) }, meta.cuda ? { ROUAGES_PERIPHERIQUE: 'CUDA' } : {}) }, (ligne) => {
     let m;
     if ((m = ligne.match(/^ROUAGES_PLAGE (\d+) (\d+)/))) { mp.total = Number(m[2]) - Number(m[1]) + 1; suivi.total = mp.total; return; }
     if ((m = ligne.match(/^ROUAGES_IMAGE (\d+)/))) {
@@ -105,6 +107,9 @@ async function rendrePlan(ctx, plan) {
       suivi.secondesParImage = ecoule / imagesSession;
       return;
     }
+    // plantage du GPU (OptiX/CUDA « illegal address », erreur 700) : la suite de cette vidéo passera en CUDA
+    if (/illegal address|CUDA error|OPTIX_ERROR|error 700/i.test(ligne)) plantageGpu = true;
+    if (/^ROUAGES_INFO/.test(ligne)) journal(`${t.ep} plan ${plan} : ${ligne.slice(13)}`);
     if (/^Fra:|^ROUAGES_/.test(ligne)) return;
     suivi.derniereLigne = ligne.slice(0, 200);
     if (/error|erreur|traceback|exception/i.test(ligne)) journal(`Blender : ${ligne.slice(0, 300)}`);
@@ -126,6 +131,11 @@ async function rendrePlan(ctx, plan) {
     mp.essais++;
     ctx.sauverMeta();
     const raison = r.code === -1 && r.erreur ? `Blender introuvable (${blender})` : `Blender s'est arrêté (code ${r.code}), ${images.length}/${mp.total || '?'} images`;
+    if (plantageGpu) {
+      const avant = meta.cuda;
+      meta.cuda = true; ctx.sauverMeta();
+      return { erreur: `${raison} : plantage du GPU${avant ? '' : ', nouvel essai en CUDA'} après une pause pour le laisser refroidir`, gpu: true, bascule: !avant };
+    }
     return { erreur: raison };
   }
 

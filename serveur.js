@@ -12,7 +12,7 @@ const createur = require('./createur');
 const publication = require('./publication');
 const { depenses } = require('./claude');
 
-const VERSION = '1.5.2';
+const VERSION = '1.5.3';
 const config = lireConfig();
 const PORT = Number(process.env.ROUAGES_PORT || config.port || 4747);
 const ADRESSE = `http://localhost:${PORT}`;

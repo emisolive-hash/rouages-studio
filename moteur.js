@@ -232,14 +232,17 @@ class Moteur {
     if (r.pause) { journal(`${t.dossier} : arrêté proprement${plan ? ` au plan ${plan} (${this.suivi.images || 0} images gardées)` : ''}.`); return; }
     if (r.erreur) {
       const er = this.erreurs[t.dossier] = this.erreurs[t.dossier] || { essais: 0 };
-      er.essais++; er.message = r.erreur; er.quand = Date.now();
+      // le passage d'OptiX à CUDA après un plantage du GPU ne compte pas comme un essai raté
+      if (!r.bascule) er.essais++;
+      er.message = r.erreur; er.quand = Date.now();
       er.bloquee = er.essais >= (Number(config.essaisParPlan) || 3);
       const definitif = er.essais >= (Number(config.essaisParPlan) || 3) * 3;
-      journal(`${t.dossier}${plan ? ` plan ${plan}` : ''} : ${r.erreur}${er.bloquee ? (definitif ? ' — mis de côté, bouton « Réessayer » dans le menu.' : ` — mis de côté, nouvel essai automatique dans ${Number(config.reessaiAutoMinutes) || 30} min (ou bouton « Réessayer »).`) : ` — nouvel essai (${er.essais}/${config.essaisParPlan}).`}`);
+      journal(`${t.dossier}${plan ? ` plan ${plan}` : ''} : ${r.erreur}${er.bloquee ? (definitif ? ' — mis de côté, bouton « Réessayer » dans le menu.' : ` — mis de côté, nouvel essai automatique dans ${Number(config.reessaiAutoMinutes) || 30} min (ou bouton « Réessayer »).`) : r.bascule ? '.' : ` — nouvel essai (${er.essais}/${config.essaisParPlan}).`}`);
       this.sauver();
       this.etat = 'reessai';
       this.veille(false);
-      await this.attendre(er.bloquee ? 1000 : 20000);
+      // après un plantage du GPU, on le laisse refroidir avant de retenter
+      await this.attendre(er.bloquee ? 1000 : r.gpu ? (Number(config.pauseApresPlantageGpu) || 120) * 1000 : 20000);
       return;
     }
     delete this.erreurs[t.dossier];
