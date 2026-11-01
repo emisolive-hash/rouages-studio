@@ -12,7 +12,7 @@ const createur = require('./createur');
 const publication = require('./publication');
 const { depenses } = require('./claude');
 
-const VERSION = '1.5.1';
+const VERSION = '1.5.2';
 const config = lireConfig();
 const PORT = Number(process.env.ROUAGES_PORT || config.port || 4747);
 const ADRESSE = `http://localhost:${PORT}`;
@@ -22,6 +22,17 @@ function ouvrirNavigateur() {
   // fenêtre d'application (Edge en mode app, sans barre d'adresse), sinon le navigateur par défaut
   if (WINDOWS) executer('cmd', ['/c', 'start', '', 'msedge', `--app=${ADRESSE}`, '--window-size=580,1020']).then((r) => { if (r.code !== 0) executer('cmd', ['/c', 'start', '', ADRESSE]); });
   else executer('xdg-open', [ADRESSE]);
+}
+
+// Ouvre un lien internet dans le navigateur par défaut de l'utilisateur
+// (la fenêtre de l'app est une fenêtre Edge : un lien cliqué dedans resterait dans Edge).
+function ouvrirLien(lien) {
+  let u;
+  try { u = new URL(String(lien || '')); } catch (e) { return false; }
+  if (u.protocol !== 'https:') return false;
+  if (WINDOWS) executer('rundll32', ['url.dll,FileProtocolHandler', u.href]);
+  else executer(process.platform === 'darwin' ? 'open' : 'xdg-open', [u.href]);
+  return true;
 }
 
 const moteur = new Moteur();
@@ -144,6 +155,7 @@ const serveur = http.createServer(async (req, res) => {
         setTimeout(() => process.exit(0), 300);
         return;
       }
+      if (corps.action === 'ouvrir-lien') return repondre(res, ouvrirLien(corps.lien) ? 200 : 400, { ok: true });
       if (corps.action === 'ouvrir-fichier') return repondre(res, medias.ouvrir(corps.dossier) ? 200 : 404, { ok: true });
       await moteur.action(corps.action, corps.dossier);
       return repondre(res, 200, { ok: true });

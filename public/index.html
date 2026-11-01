@@ -1317,7 +1317,17 @@ function dessinerPublication() {
     <div class="rangee"><button class="principal" style="height:40px;padding:0 18px;font-size:14px" id="btn-metricool" onclick="connecterMetricool()">${ico('ok', 16)} Connecter</button>${connecte ? '<button class="petit" onclick="pubOuvert=false; dessinerPublication()">Annuler</button>' : ''}</div>
     <p class="g-petit">L'API de Metricool demande son offre <b>Advanced</b> (ou plus). Le jeton reste uniquement sur ce PC. Buffer et les autres outils arrivent ensuite.</p>`);
 }
-function ouvrirMetricool() { window.open('https://app.metricool.com/', '_blank', 'noopener'); }
+function ouvrirMetricool() { ouvrirLien('https://app.metricool.com/'); }
+// les liens internet s'ouvrent dans le navigateur par défaut (pas dans la fenêtre de l'app)
+async function ouvrirLien(lien) {
+  try { await poster('/api/action', { action: 'ouvrir-lien', lien }); toast(`${ico('ouvrir', 15)} Ouvert dans ton navigateur`); }
+  catch (e) { window.open(lien, '_blank', 'noopener'); }
+}
+document.addEventListener('click', (e) => {
+  const a = e.target.closest && e.target.closest('a[href^="https://"]');
+  if (!a) return;
+  e.preventDefault(); ouvrirLien(a.href);
+});
 async function connecterMetricool(compte) {
   const b = $('btn-metricool'); if (b) { b.disabled = true; b.innerHTML = '<span class="spin"></span> Vérification…'; }
   const jeton = $('pub-jeton') ? $('pub-jeton').value.trim() : '';
