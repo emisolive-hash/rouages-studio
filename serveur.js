@@ -11,7 +11,7 @@ const installation = require('./installation');
 const createur = require('./createur');
 const { depenses } = require('./claude');
 
-const VERSION = '1.4';
+const VERSION = '1.4.1';
 const config = lireConfig();
 const PORT = Number(process.env.ROUAGES_PORT || config.port || 4747);
 const ADRESSE = `http://localhost:${PORT}`;
@@ -149,12 +149,38 @@ const serveur = http.createServer(async (req, res) => {
   }
 });
 
+function appeler(methode, chemin, corps) {
+  return new Promise((resolve) => {
+    const req = http.request({ host: '127.0.0.1', port: PORT, path: chemin, method: methode, timeout: 5000,
+      headers: { 'Content-Type': 'application/json', 'X-Rouages': '1', Host: 'localhost' } }, (res) => {
+      let d = ''; res.on('data', (c) => (d += c)); res.on('end', () => { try { resolve(JSON.parse(d)); } catch (e) { resolve(null); } });
+    });
+    req.on('error', () => resolve(null)); req.on('timeout', () => req.destroy());
+    if (corps) req.write(JSON.stringify(corps));
+    req.end();
+  });
+}
+let dejaRemplacee = false;
+async function remplacerAncienne() {
+  if (dejaRemplacee) return false;
+  const e = await appeler('GET', '/api/etat');
+  if (!e || e.version === VERSION) return false;
+  dejaRemplacee = true;
+  console.log(`Ancienne version ${e.version} en marche : remplacement par la ${VERSION}.`);
+  await appeler('POST', '/api/action', { action: 'quitter' });
+  return true;
+}
+
 serveur.on('error', (e) => {
   if (e.code === 'EADDRINUSE') {
-    // le menu tourne déjà : on ouvre juste la page
-    console.log(`Le menu tourne déjà : ${ADRESSE}`);
-    ouvrirNavigateur();
-    setTimeout(() => process.exit(0), 1500);
+    // l'app tourne déjà : si c'est une ancienne version (mise à jour faite entre-temps), on la remplace ;
+    // sinon on ouvre juste la fenêtre
+    remplacerAncienne().then((remplacee) => {
+      if (remplacee) { journal('Ancienne version fermée, la nouvelle démarre (le rendu reprend à l’image près).'); setTimeout(() => serveur.listen(PORT, '127.0.0.1'), 1500); return; }
+      console.log(`Rouages Studio tourne déjà : ${ADRESSE}`);
+      ouvrirNavigateur();
+      setTimeout(() => process.exit(0), 1500);
+    });
   } else {
     console.error(e);
     process.exit(1);
