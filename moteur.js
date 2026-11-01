@@ -116,11 +116,22 @@ class Moteur {
 
   prochaine() { return this.ordre()[0] || null; }
 
+  // Une tâche mise de côté après plusieurs échecs (ex. Blender qui plante faute de mémoire graphique)
+  // est retentée toute seule plus tard : ces plantages sont souvent passagers, et le rendu reprend à l'image près.
+  // Après 3 séries d'échecs, elle attend le bouton « Réessayer ».
+  bloquee(dossier, config) {
+    const er = this.erreurs[dossier];
+    if (!er || !er.bloquee) return false;
+    const parSerie = Number(config.essaisParPlan) || 3;
+    if (er.essais >= parSerie * 3) return true;
+    return Date.now() - (er.quand || 0) < (Number(config.reessaiAutoMinutes) || 30) * 60000;
+  }
+
   // tâches prêtes, dans l'ordre où elles seront faites
   ordre() {
     const config = lireConfig();
     const prets = this.taches.filter((t) => t.statut === 'pret' && !this.ignores.includes(t.dossier)
-      && !(this.erreurs[t.dossier] && this.erreurs[t.dossier].bloquee));
+      && !this.bloquee(t.dossier, config));
     const rang = (t) => {
       const p = this.priorites.indexOf(t.dossier);
       return p >= 0 ? p : 1000;
@@ -223,7 +234,8 @@ class Moteur {
       const er = this.erreurs[t.dossier] = this.erreurs[t.dossier] || { essais: 0 };
       er.essais++; er.message = r.erreur; er.quand = Date.now();
       er.bloquee = er.essais >= (Number(config.essaisParPlan) || 3);
-      journal(`${t.dossier}${plan ? ` plan ${plan}` : ''} : ${r.erreur}${er.bloquee ? ' — mis de côté, bouton « Réessayer » dans le menu.' : ` — nouvel essai (${er.essais}/${config.essaisParPlan}).`}`);
+      const definitif = er.essais >= (Number(config.essaisParPlan) || 3) * 3;
+      journal(`${t.dossier}${plan ? ` plan ${plan}` : ''} : ${r.erreur}${er.bloquee ? (definitif ? ' — mis de côté, bouton « Réessayer » dans le menu.' : ` — mis de côté, nouvel essai automatique dans ${Number(config.reessaiAutoMinutes) || 30} min (ou bouton « Réessayer »).`) : ` — nouvel essai (${er.essais}/${config.essaisParPlan}).`}`);
       this.sauver();
       this.etat = 'reessai';
       this.veille(false);

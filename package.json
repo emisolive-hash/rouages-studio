@@ -1,6 +1,6 @@
 {
   "name": "rouages-studio",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "private": true,
   "description": "Rouages Studio : file de rendus Blender et voix, avec création assistée par Claude.",
   "main": "serveur.js",
