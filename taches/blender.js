@@ -108,7 +108,7 @@ async function rendrePlan(ctx, plan) {
       return;
     }
     // plantage du GPU (OptiX/CUDA « illegal address », erreur 700) : la suite de cette vidéo passera en CUDA
-    if (/illegal address|CUDA error|OPTIX_ERROR|error 700/i.test(ligne)) plantageGpu = true;
+    if (/illegal address|CUDA error|OPTIX_ERROR|error 700|out of GPU|shared host memory|out of memory/i.test(ligne)) plantageGpu = true;
     if (/^ROUAGES_INFO/.test(ligne)) journal(`${t.ep} plan ${plan} : ${ligne.slice(13)}`);
     if (/^Fra:|^ROUAGES_/.test(ligne)) return;
     suivi.derniereLigne = ligne.slice(0, 200);

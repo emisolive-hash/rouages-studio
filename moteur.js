@@ -242,7 +242,10 @@ class Moteur {
       this.etat = 'reessai';
       this.veille(false);
       // après un plantage du GPU, on le laisse refroidir avant de retenter
-      await this.attendre(er.bloquee ? 1000 : r.gpu ? (Number(config.pauseApresPlantageGpu) || 120) * 1000 : 20000);
+      const delai = er.bloquee ? 1000 : r.gpu ? (Number(config.pauseApresPlantageGpu) || 120) * 1000 : 20000;
+      this.reessai = { nom: nomEpisode(t), ep: t.ep, plan, gpu: !!r.gpu, cuda: !!r.gpu, misDeCote: er.bloquee, jusqua: Date.now() + delai, message: r.erreur };
+      await this.attendre(delai);
+      this.reessai = null;
       return;
     }
     delete this.erreurs[t.dossier];
@@ -368,7 +371,7 @@ class Moteur {
     }
     return {
       etat: this.etat, enMarche: this.enMarche, pauseFinPlan: this.pauseFinPlan, pauseCloud: this.pauseCloud,
-      enCours, occupePar: this.occupePar ? this.occupePar.quoi : null, messageGit: this.messageGit,
+      enCours, reessai: this.etat === 'reessai' ? this.reessai : null, occupePar: this.occupePar ? this.occupePar.quoi : null, messageGit: this.messageGit,
       derniereReleve: this.derniereReleve, prochaineReleve: this.derniereReleve + Math.max(1, Number(config.releveMinutes) || 5) * 60000,
       file: this.fileAffichee().map((t) => ({
         dossier: t.dossier, ep: t.ep, titre: t.titre, nom: nomEpisode(t), type: t.type, statut: t.statut, plans: t.plans || 0,

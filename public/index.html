@@ -702,7 +702,7 @@ function rendre(e) {
   else if (e.etat === 'pause-cloud') etat = 'En pause (demandée par le cloud)';
   else if (e.etat === 'attente') etat = 'Tout est à jour';
   else if (e.etat === 'occupe') etat = 'Le GPU est déjà occupé';
-  else if (e.etat === 'reessai') etat = 'Petit souci, nouvel essai…';
+  else if (e.etat === 'reessai') etat = e.reessai && e.reessai.gpu ? 'Le GPU refroidit' : 'Petit souci, nouvel essai…';
   else if (e.etat === 'releve' || e.etat === 'demarrage') etat = 'Je regarde la file…';
   else if (e.etat === 'configuration') etat = 'À configurer';
   poser('etat', esc(etat));
@@ -744,6 +744,14 @@ function rendre(e) {
     titre = 'Pause';
     const suiv = e.file.find((t) => t.dossier === e.prochaine);
     infos = suiv ? `Ça reprendra avec <b>${esc(suiv.nom)}</b>, là où ça s'est arrêté.` : 'Rien ne tourne, tu peux jouer tranquille.';
+  } else if (e.etat === 'reessai' && e.reessai) {
+    const r = e.reessai;
+    const reste = Math.max(0, Math.round((r.jusqua - Date.now()) / 1000));
+    centre = `<div class="icone-centre">${ico('lune', 46)}</div><div class="sous-pct">${reste >= 60 ? Math.ceil(reste / 60) + ' min' : reste + ' s'}</div>`;
+    titre = esc(r.nom) + (r.plan ? ` · plan ${r.plan}` : '');
+    infos = r.misDeCote ? 'Mis de côté après plusieurs plantages : je passe à la vidéo suivante, et je le retenterai plus tard.'
+      : r.gpu ? `La carte graphique a planté : je la laisse refroidir, puis je reprends vers <b>${heure(r.jusqua)}</b> en mode CUDA, plus stable, à l'image près.`
+      : `Un souci pendant le rendu : je réessaie vers <b>${heure(r.jusqua)}</b>, à l'image près.`;
   } else if (e.etat === 'occupe') {
     centre = `<div class="icone-centre">${ico('oeil', 50)}</div>`;
     titre = 'J’attends mon tour';
