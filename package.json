@@ -1,0 +1,11 @@
+{
+  "name": "rouages-studio",
+  "version": "1.4.0",
+  "private": true,
+  "description": "Rouages Studio : file de rendus Blender et voix, avec création assistée par Claude.",
+  "main": "serveur.js",
+  "scripts": { "start": "node serveur.js" },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0"
+  }
+}

@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rouages Studio</title>
+<style>
+  :root {
+    --fond: #05070f; --verre: rgba(255,255,255,.045); --verre2: rgba(255,255,255,.07); --trait: rgba(255,255,255,.08);
+    --texte: #eef2fb; --doux: #8a94ab; --cyan: #42d9ff; --bleu: #5b7cff; --ambre: #ffb547; --rouge: #ff5d6c; --vert: #3ee6a0; --violet: #a78bfa;
+    --accent: var(--cyan);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { font: 15px/1.45 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; color: var(--texte); background: var(--fond); overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+  button { font-family: inherit; }
+  .halo { position: fixed; width: 70vmax; height: 70vmax; border-radius: 50%; filter: blur(90px); opacity: .22; z-index: -1; transition: background 1.2s; }
+  .halo.a { background: var(--accent); top: -35vmax; left: -20vmax; animation: derive 22s ease-in-out infinite alternate; }
+  .halo.b { background: var(--bleu); bottom: -40vmax; right: -25vmax; animation: derive 28s ease-in-out infinite alternate-reverse; }
+  @keyframes derive { to { transform: translate(8vmax, 6vmax) scale(1.08); } }
+
+  .app { max-width: 540px; margin: 0 auto; padding: 18px 18px 40px; }
+  .haut { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .marque { font-weight: 800; letter-spacing: 2.5px; font-size: 15px; }
+  .marque i { font-style: normal; color: var(--accent); transition: color .8s; }
+  .vide { flex: 1; }
+  .rond { width: 38px; height: 38px; border-radius: 12px; border: 1px solid var(--trait); background: var(--verre); color: var(--doux); display: grid; place-items: center; cursor: pointer; transition: .2s; }
+  .rond:hover { color: var(--texte); background: var(--verre2); }
+  .rond svg { transition: transform .5s cubic-bezier(.2,.8,.2,1); }
+  .rond.roue:hover svg { transform: rotate(60deg); }
+  .rond.aide { font-weight: 800; font-size: 15px; }
+  button, .onglet, .marque, .stat, .badge, .puce { user-select: none; -webkit-user-select: none; }
+  * { -webkit-tap-highlight-color: transparent; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 10px; border: 2px solid transparent; background-clip: padding-box; }
+  ::-webkit-scrollbar-thumb:hover { background-color: rgba(255,255,255,.16); }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  /* onglets */
+  .nav { position: relative; margin: 0 -4px 16px; }
+  .onglets { display: flex; gap: 4px; overflow-x: auto; padding: 4px 4px 7px; scrollbar-width: none; position: relative; scroll-behavior: smooth; overscroll-behavior-x: contain;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 var(--fg, 0px), #000 calc(100% - var(--fd, 0px)), transparent 100%);
+            mask-image: linear-gradient(90deg, transparent 0, #000 var(--fg, 0px), #000 calc(100% - var(--fd, 0px)), transparent 100%); }
+  .onglets::-webkit-scrollbar { display: none; }
+  .onglet { flex: none; display: flex; align-items: center; gap: 7px; padding: 8px 12px; border-radius: 12px; border: 0; background: transparent; color: var(--doux); cursor: pointer; font-size: 13.5px; font-weight: 600; transition: color .25s, background .25s; position: relative; }
+  .onglet:hover { color: var(--texte); background: var(--verre); }
+  .onglet.actif { color: var(--texte); background: var(--verre2); }
+  .onglet .bientot-point { width: 6px; height: 6px; border-radius: 50%; background: var(--ambre); opacity: .75; margin-left: -2px; }
+  .indicateur { position: absolute; bottom: 3px; left: 0; height: 2.5px; width: 0; border-radius: 3px; background: var(--accent); box-shadow: 0 0 10px var(--accent); transition: transform .4s cubic-bezier(.2,.8,.2,1), width .4s cubic-bezier(.2,.8,.2,1), background .8s; pointer-events: none; }
+  .fleche { position: absolute; top: 4px; height: 35px; width: 30px; border: 0; border-radius: 10px; background: rgba(12,17,32,.92); color: var(--texte); cursor: pointer; display: grid; place-items: center; opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 2; }
+  .fleche.g { left: 0; } .fleche.d { right: 0; }
+  .nav.peut-g .fleche.g, .nav.peut-d .fleche.d { opacity: 1; pointer-events: auto; }
+  .fleche:hover { background: rgba(30,40,70,.95); }
+  .page { display: none; }
+  .page.active { display: block; animation: entree .45s cubic-bezier(.2,.8,.2,1); }
+  @keyframes entree { from { opacity: 0; transform: translateY(12px); } }
+  /* une liste déjà affichée ne rejoue pas son animation à chaque mise à jour */
+  .calme .ligne, .calme .ep-carte { animation: none; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+  .carte { background: var(--verre); border: 1px solid var(--trait); border-radius: 24px; backdrop-filter: blur(20px); }
+  .coeur { padding: 24px 20px 20px; text-align: center; }
+  .etat { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--doux); padding: 5px 12px; border-radius: 99px; background: var(--verre); border: 1px solid var(--trait); }
+  .point { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+  .travail .point { animation: pouls 1.4s ease-in-out infinite; }
+  @keyframes pouls { 50% { transform: scale(.6); opacity: .5; } }
+
+  .anneau { position: relative; width: 220px; height: 220px; margin: 20px auto 14px; }
+  .anneau > svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+  .piste { fill: none; stroke: rgba(255,255,255,.06); stroke-width: 14; }
+  .arc { fill: none; stroke: url(#degrade); stroke-width: 14; stroke-linecap: round; transition: stroke-dashoffset 1s cubic-bezier(.4,0,.2,1); filter: drop-shadow(0 0 10px rgba(66,217,255,.55)); transform-origin: 118px 118px; }
+  .arc-ep { fill: none; stroke: var(--ambre); stroke-width: 4; stroke-linecap: round; opacity: .85; transition: stroke-dashoffset 1s cubic-bezier(.4,0,.2,1); }
+  .piste-ep { fill: none; stroke: rgba(255,255,255,.05); stroke-width: 4; }
+  .indet .arc { stroke-dashoffset: 470 !important; animation: tourne 1.4s linear infinite; }
+  @keyframes tourne { to { transform: rotate(360deg); } }
+  .pause-etat .arc { filter: none; opacity: .35; }
+  .centre { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 2px; }
+  .pct { font-size: 44px; font-weight: 700; letter-spacing: -1.5px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .pct small { font-size: 19px; color: var(--doux); font-weight: 600; margin-left: 2px; }
+  .sous-pct { font-size: 13px; color: var(--doux); }
+  .icone-centre { color: var(--doux); animation: flotte 3.5s ease-in-out infinite; }
+  @keyframes flotte { 50% { transform: translateY(-5px); } }
+  .titre { font-size: 21px; font-weight: 700; letter-spacing: -.3px; min-height: 30px; }
+  .infos { color: var(--doux); font-size: 14px; margin-top: 3px; min-height: 21px; }
+  .infos b { color: var(--texte); font-weight: 600; }
+
+  /* stats chiffrées */
+  .stats { display: grid; grid-template-columns: auto repeat(4, 1fr); gap: 8px; margin-top: 16px; text-align: left; }
+  .stats.sans-apercu { grid-template-columns: repeat(4, 1fr); }
+  .stat { background: rgba(255,255,255,.04); border: 1px solid var(--trait); border-radius: 14px; padding: 9px 10px; min-width: 0; }
+  .stat b { display: block; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stat span { font-size: 11px; color: var(--doux); }
+  .apercu { width: 44px; border-radius: 10px; overflow: hidden; border: 1px solid var(--trait); cursor: zoom-in; position: relative; background: #000; }
+  .apercu img { width: 100%; height: 100%; object-fit: cover; display: block; transition: opacity .4s; }
+  .apercu::after { content: 'LIVE'; position: absolute; left: 3px; top: 3px; font-size: 7.5px; font-weight: 800; background: var(--rouge); color: #fff; padding: 1px 3px; border-radius: 3px; letter-spacing: .5px; }
+
+  .bouton { margin-top: 16px; width: 100%; height: 56px; border: 0; border-radius: 18px; font-size: 17px; font-weight: 650; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; color: #071018; transition: transform .12s, box-shadow .3s, background .4s; }
+  .bouton:hover { transform: translateY(-1px); }
+  .bouton:active { transform: scale(.97); }
+  .bouton.pause { background: linear-gradient(135deg, #ffd27a, #ffac3a); box-shadow: 0 10px 30px -10px rgba(255,181,71,.7); }
+  .bouton.go { background: linear-gradient(135deg, #6ff0bd, #26c98a); box-shadow: 0 10px 30px -10px rgba(62,230,160,.7); }
+  .lien { margin-top: 11px; font-size: 13px; color: var(--doux); }
+  .lien a { color: var(--texte); text-decoration: none; border-bottom: 1px dashed var(--doux); cursor: pointer; }
+  .alerte { margin-top: 14px; padding: 12px 14px; border-radius: 14px; font-size: 13px; text-align: left; display: flex; gap: 10px; align-items: center; animation: entree .4s; }
+  .alerte.r { background: rgba(255,93,108,.1); border: 1px solid rgba(255,93,108,.3); }
+  .alerte.a { background: rgba(255,181,71,.1); border: 1px solid rgba(255,181,71,.3); }
+  .alerte span { flex: 1; }
+  .petit { font-size: 12px; font-weight: 600; line-height: 1; padding: 8px 11px; border-radius: 10px; border: 1px solid var(--trait); background: var(--verre2); color: var(--texte); cursor: pointer; white-space: nowrap; transition: .2s; }
+  .petit:hover { border-color: var(--accent); }
+  .petit:disabled { opacity: .45; cursor: default; }
+
+  .bloc { margin-top: 14px; padding: 16px 16px 8px; }
+  .bloc-tete { display: flex; align-items: baseline; padding: 0 4px 8px; gap: 8px; }
+  .bloc-tete h3 { font-size: 12.5px; text-transform: uppercase; letter-spacing: 1.4px; color: var(--doux); font-weight: 700; }
+  .bloc-tete a { font-size: 13px; color: var(--accent); cursor: pointer; text-decoration: none; }
+  .ligne { display: flex; align-items: center; gap: 12px; padding: 9px 6px; border-radius: 14px; transition: background .2s, transform .2s; animation: glisse .45s cubic-bezier(.2,.8,.2,1) both; }
+  .ligne:hover { background: var(--verre); }
+  .ligne.clic { cursor: pointer; }
+  .ligne.clic:hover { transform: translateX(3px); }
+  @keyframes glisse { from { opacity: 0; transform: translateX(-10px); } }
+  .badge { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; flex: none; position: relative; }
+  .b3d { background: rgba(66,217,255,.12); color: var(--cyan); }
+  .bvoix { background: rgba(167,139,250,.14); color: var(--violet); }
+  .bok { background: rgba(62,230,160,.12); color: var(--vert); }
+  .bjeu { background: rgba(255,255,255,.08); color: var(--texte); }
+  .texte { flex: 1; min-width: 0; }
+  .nom { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .detail { font-size: 12.5px; color: var(--doux); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .points { display: inline-flex; gap: 3px; }
+  .points i { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.12); }
+  .points i.ok { background: var(--ambre); }
+  .gestes { display: flex; gap: 4px; opacity: 0; transition: opacity .2s; }
+  .ligne:hover .gestes { opacity: 1; }
+  .geste { width: 30px; height: 30px; border-radius: 9px; border: 0; background: var(--verre2); color: var(--doux); cursor: pointer; display: grid; place-items: center; }
+  .geste:hover { color: var(--texte); background: rgba(255,255,255,.12); }
+  .rien { color: var(--doux); font-size: 14px; padding: 6px 6px 12px; }
+  .sep { font-size: 12px; color: var(--doux); padding: 12px 6px 4px; text-transform: uppercase; letter-spacing: 1.2px; }
+  .barre-bas { text-align: center; margin-top: 18px; font-size: 12px; color: var(--doux); }
+
+  /* médias */
+  .ep-carte { padding: 14px 14px 12px; margin-bottom: 12px; animation: glisse .45s both; }
+  .ep-tete { display: flex; align-items: center; gap: 12px; }
+  .jouer { width: 44px; height: 44px; border-radius: 14px; border: 0; cursor: pointer; display: grid; place-items: center; color: #071018; background: linear-gradient(135deg, #7fe7ff, #3fb6ff); box-shadow: 0 8px 20px -8px rgba(66,217,255,.8); transition: transform .15s; flex: none; }
+  .jouer:hover { transform: scale(1.06); }
+  .puces { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .puce { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--trait); background: rgba(255,255,255,.035); color: var(--texte); cursor: pointer; transition: .2s; }
+  .puce:hover { border-color: var(--accent); background: var(--verre2); transform: translateY(-1px); }
+  .puce.v { color: #d6c9ff; }
+  .puce svg { opacity: .75; }
+
+  /* onglets à venir */
+  .bientot { padding: 22px 20px; text-align: center; }
+  .bientot h2 { font-size: 20px; margin: 10px 0 4px; }
+  .bientot p { color: var(--doux); font-size: 14px; }
+  .grosse-icone { width: 64px; height: 64px; border-radius: 20px; margin: 0 auto; display: grid; place-items: center; background: linear-gradient(135deg, rgba(91,124,255,.25), rgba(66,217,255,.15)); color: var(--cyan); animation: flotte 3.5s ease-in-out infinite; }
+  .etiquette { display: inline-block; margin-top: 12px; font-size: 11px; font-weight: 700; letter-spacing: .8px; padding: 4px 9px; border-radius: 8px; background: rgba(255,181,71,.12); color: var(--ambre); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 16px 0 6px; }
+  .chip { font-size: 12.5px; padding: 7px 12px; border-radius: 99px; border: 1px solid var(--trait); color: var(--doux); background: rgba(255,255,255,.03); }
+  .squelette { height: 64px; border-radius: 16px; margin-top: 10px; background: linear-gradient(90deg, rgba(255,255,255,.03) 0%, rgba(255,255,255,.08) 50%, rgba(255,255,255,.03) 100%); background-size: 200% 100%; animation: brille 1.8s linear infinite; }
+  @keyframes brille { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+  .grille2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; text-align: left; }
+  .tuile { padding: 14px; border-radius: 18px; border: 1px solid var(--trait); background: rgba(255,255,255,.035); position: relative; }
+  .tuile b { display: block; margin: 8px 0 2px; }
+  .tuile span { font-size: 12.5px; color: var(--doux); }
+  .tuile.on { border-color: rgba(62,230,160,.45); background: rgba(62,230,160,.06); }
+  .tuile .marque-on { position: absolute; top: 12px; right: 12px; font-size: 10.5px; font-weight: 700; color: var(--vert); }
+  .tuile .marque-off { position: absolute; top: 12px; right: 12px; font-size: 10.5px; font-weight: 700; color: var(--doux); }
+  .etapes { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 16px; font-size: 12px; color: var(--doux); }
+  .etapes span { padding: 5px 9px; border-radius: 8px; background: rgba(255,255,255,.04); }
+  .etapes span.on { color: var(--vert); background: rgba(62,230,160,.08); }
+  .etapes i { font-style: normal; opacity: .4; align-self: center; }
+  .interrupteur { display: flex; align-items: center; gap: 12px; padding: 12px 4px; border-top: 1px solid var(--trait); text-align: left; font-size: 14px; opacity: .6; }
+  .interrupteur:first-of-type { border-top: 0; }
+  .bascule { width: 40px; height: 23px; border-radius: 99px; background: rgba(255,255,255,.12); position: relative; flex: none; }
+  .bascule::after { content: ''; position: absolute; width: 17px; height: 17px; border-radius: 50%; background: #c7cede; top: 3px; left: 3px; }
+  .bascule.on { background: rgba(62,230,160,.5); }
+  .bascule.on::after { left: 20px; background: #fff; }
+  .champ-cle { display: flex; gap: 8px; margin-top: 14px; }
+  .champ-cle input { flex: 1; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--trait); background: rgba(255,255,255,.04); color: var(--doux); font: inherit; font-size: 13px; }
+
+  /* lecteur */
+  .lecteur { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(2,4,10,.82); backdrop-filter: blur(14px); opacity: 0; pointer-events: none; transition: opacity .3s; padding: 18px; }
+  .lecteur.ouvert { opacity: 1; pointer-events: auto; }
+  .lecteur-boite { width: min(440px, 100%); max-height: 100%; display: flex; flex-direction: column; gap: 10px; transform: scale(.94); transition: transform .35s cubic-bezier(.2,.8,.2,1); }
+  .lecteur.ouvert .lecteur-boite { transform: none; }
+  .lecteur-tete { display: flex; align-items: center; gap: 10px; }
+  .lecteur-tete .texte .nom { font-size: 16px; }
+  .ecran { border-radius: 18px; overflow: hidden; background: #000; border: 1px solid var(--trait); display: grid; place-items: center; }
+  .ecran video, .ecran img { width: 100%; max-height: 68vh; display: block; object-fit: contain; background: #000; }
+  .ecran.audio { background: linear-gradient(135deg, rgba(167,139,250,.18), rgba(66,217,255,.1)); padding: 26px 16px; }
+  .ecran audio { width: 100%; }
+  .onde { display: flex; gap: 4px; align-items: center; height: 60px; margin-bottom: 14px; }
+  .onde i { width: 5px; border-radius: 3px; background: var(--violet); animation: onde 1s ease-in-out infinite; }
+  .ecran.audio.arret .onde i { animation-play-state: paused; }
+  @keyframes onde { 0%, 100% { height: 14px; } 50% { height: 56px; } }
+  .liste-lecteur { display: flex; flex-wrap: wrap; gap: 6px; }
+  .puce.actif { border-color: var(--accent); background: rgba(66,217,255,.12); }
+
+  /* tiroir réglages */
+  .voile { position: fixed; inset: 0; background: rgba(0,0,0,.5); opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 10; }
+  .tiroir { position: fixed; top: 0; right: 0; height: 100%; width: min(440px, 100%); background: #0b1020; border-left: 1px solid var(--trait); transform: translateX(105%); transition: transform .4s cubic-bezier(.2,.8,.2,1); padding: 22px 20px; overflow-y: auto; z-index: 11; }
+  .ouvert .voile { opacity: 1; pointer-events: auto; }
+  .ouvert .tiroir { transform: none; }
+  .tiroir h2 { font-size: 18px; margin-bottom: 14px; display: flex; align-items: center; }
+  .tiroir h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 1.3px; color: var(--doux); margin: 20px 0 8px; }
+  .champ { margin-bottom: 10px; }
+  .champ label { display: block; font-size: 13px; margin-bottom: 4px; }
+  .champ input { width: 100%; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--trait); background: rgba(255,255,255,.04); color: var(--texte); font: inherit; font-size: 13px; }
+  .champ small { color: var(--doux); font-size: 12px; }
+  .case { display: flex; gap: 10px; align-items: center; font-size: 13px; margin-bottom: 8px; }
+  pre { background: #050811; border: 1px solid var(--trait); border-radius: 12px; padding: 10px; max-height: 260px; overflow: auto; font: 11.5px/1.45 Consolas, monospace; color: #aab4c8; white-space: pre-wrap; }
+  .actions-tiroir { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chemin { font: 12px/1.4 Consolas, monospace; color: #aab4c8; word-break: break-all; background: rgba(255,255,255,.04); border-radius: 8px; padding: 6px 8px; margin-bottom: 8px; }
+
+  /* création */
+  .chips.gauche { justify-content: flex-start; margin: 2px 0 4px; padding: 0 2px; }
+  .chip.choix-cat { cursor: pointer; transition: .2s; user-select: none; }
+  .chip.choix-cat.on { color: var(--texte); border-color: var(--accent); background: rgba(66,217,255,.1); }
+  .idee { display: flex; gap: 12px; padding: 11px 8px; border-radius: 14px; cursor: pointer; transition: background .2s, transform .2s; animation: glisse .4s both; }
+  .idee:hover { background: var(--verre); }
+  .idee .coche { width: 24px; height: 24px; border-radius: 8px; border: 1.5px solid rgba(255,255,255,.2); flex: none; display: grid; place-items: center; color: transparent; transition: .2s; margin-top: 1px; }
+  .idee.on .coche { background: var(--accent); border-color: var(--accent); color: #071018; transform: scale(1.05); }
+  .idee .accroche { font-size: 13px; color: #c9d1e3; font-style: italic; margin-top: 2px; }
+  .idee .pourquoi { font-size: 12px; color: var(--doux); margin-top: 3px; }
+  .cat-tete { display: flex; align-items: center; gap: 8px; padding: 4px 6px 2px; }
+  .cat-tete h3 { font-size: 12.5px; text-transform: uppercase; letter-spacing: 1.4px; color: var(--doux); font-weight: 700; }
+  .barre-choix { position: sticky; bottom: 14px; margin-top: 14px; z-index: 5; transform: translateY(30px); opacity: 0; pointer-events: none; transition: .35s cubic-bezier(.2,.8,.2,1); }
+  .barre-choix.on { transform: none; opacity: 1; pointer-events: auto; }
+  .barre-choix .principal { width: 100%; justify-content: center; height: 52px; font-size: 15.5px; }
+  .projet { padding: 12px 8px; border-top: 1px solid var(--trait); animation: glisse .4s both; }
+  .projet:first-child { border-top: 0; }
+  .projet-tete { display: flex; gap: 12px; align-items: center; }
+  .pastille { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 7px; white-space: nowrap; }
+  .pastille.bleu { background: rgba(66,217,255,.12); color: var(--cyan); }
+  .pastille.ambre { background: rgba(255,181,71,.13); color: var(--ambre); }
+  .pastille.vert { background: rgba(62,230,160,.12); color: var(--vert); }
+  .pastille.rouge { background: rgba(255,93,108,.13); color: var(--rouge); }
+  .script { margin: 10px 0 0 50px; font-size: 13.5px; }
+  .script .voixoff { background: rgba(255,255,255,.04); border: 1px solid var(--trait); border-radius: 12px; padding: 10px 12px; color: #dbe2f0; white-space: pre-wrap; }
+  .script ol { padding-left: 18px; margin: 8px 0; color: var(--doux); font-size: 12.5px; }
+  .script ol b { color: var(--texte); font-weight: 600; }
+  .script textarea { width: 100%; min-height: 64px; margin-top: 8px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--trait); background: rgba(255,255,255,.05); color: var(--texte); font: inherit; font-size: 13.5px; resize: vertical; }
+  .script textarea:focus { outline: none; border-color: var(--accent); }
+  .rangee { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .segments { display: inline-flex; gap: 4px; padding: 4px; border-radius: 12px; background: rgba(255,255,255,.04); border: 1px solid var(--trait); flex-wrap: wrap; }
+  .segments button { border: 0; background: transparent; color: var(--doux); padding: 7px 12px; border-radius: 9px; cursor: pointer; font-size: 13px; font-weight: 600; transition: .2s; }
+  .segments button.on { background: var(--verre2); color: var(--texte); box-shadow: inset 0 -2px 0 var(--accent); }
+  .selecteur { width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--trait); background: #0d1324; color: var(--texte); font: inherit; font-size: 13.5px; }
+  .tuile.clic { cursor: pointer; transition: border-color .2s, transform .2s; }
+  .tuile.clic:hover { transform: translateY(-1px); border-color: rgba(66,217,255,.4); }
+  .tuile.off { opacity: .55; }
+
+  /* petites notifications */
+  .toasts { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 40; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
+  .toast { background: rgba(17,25,46,.96); border: 1px solid var(--trait); padding: 10px 15px; border-radius: 13px; font-size: 13px; box-shadow: 0 14px 40px -12px rgba(0,0,0,.8); animation: toast-in .35s cubic-bezier(.2,.8,.2,1); display: flex; gap: 8px; align-items: center; }
+  .toast.sort { animation: toast-out .3s forwards; }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(14px) scale(.96); } }
+  @keyframes toast-out { to { opacity: 0; transform: translateY(8px); } }
+
+  /* guide de démarrage */
+  .guide { position: fixed; inset: 0; z-index: 25; background: rgba(3,5,12,.86); backdrop-filter: blur(18px); display: grid; place-items: center; padding: 16px; opacity: 0; pointer-events: none; transition: opacity .35s; }
+  .guide.ouvert { opacity: 1; pointer-events: auto; }
+  .guide-boite { width: min(500px, 100%); max-height: 100%; overflow-y: auto; padding: 22px 22px 18px; border-radius: 26px; background: linear-gradient(180deg, rgba(20,28,52,.95), rgba(9,13,26,.98)); border: 1px solid var(--trait); box-shadow: 0 30px 80px -20px rgba(0,0,0,.8); transform: translateY(16px) scale(.98); transition: transform .5s cubic-bezier(.2,.8,.2,1); }
+  .guide.ouvert .guide-boite { transform: none; }
+  .g-haut { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .g-progres { flex: 1; display: flex; gap: 5px; }
+  .g-progres i { flex: 1; height: 4px; border-radius: 4px; background: rgba(255,255,255,.08); transition: background .5s; }
+  .g-progres i.on { background: var(--accent); }
+  .g-etape { animation: g-entre .45s cubic-bezier(.2,.8,.2,1); }
+  .g-etape.retour { animation-name: g-retour; }
+  @keyframes g-entre { from { opacity: 0; transform: translateX(26px); } }
+  @keyframes g-retour { from { opacity: 0; transform: translateX(-26px); } }
+  .g-etape h2 { font-size: 22px; letter-spacing: -.3px; margin: 12px 0 6px; }
+  .g-intro { color: var(--doux); font-size: 14px; margin-bottom: 16px; }
+  .g-intro b { color: var(--texte); }
+  .g-petit { color: var(--doux); font-size: 12.5px; margin-top: 6px; }
+  .g-petit a, .g-intro a { color: var(--accent); }
+  .choix { display: flex; gap: 12px; align-items: center; width: 100%; text-align: left; padding: 13px 14px; border-radius: 16px; border: 1px solid var(--trait); background: rgba(255,255,255,.035); color: var(--texte); cursor: pointer; margin-bottom: 9px; transition: border-color .2s, background .2s, transform .2s; font-size: 14px; }
+  .choix:hover { border-color: rgba(66,217,255,.5); transform: translateY(-1px); }
+  .choix.actif { border-color: var(--accent); background: rgba(66,217,255,.08); }
+  .choix-detail { overflow: hidden; max-height: 0; opacity: 0; transition: max-height .4s cubic-bezier(.2,.8,.2,1), opacity .3s, margin .3s; margin: 0 4px; }
+  .choix-detail.ouvert { max-height: 260px; opacity: 1; margin: -2px 4px 12px; }
+  .g-pied { display: flex; gap: 10px; margin-top: 18px; align-items: center; }
+  .principal { height: 44px; padding: 0 20px; border: 0; border-radius: 14px; font-weight: 650; font-size: 14.5px; cursor: pointer; color: #071018; background: linear-gradient(135deg, #7fe7ff, #3fb6ff); box-shadow: 0 10px 26px -12px rgba(66,217,255,.9); transition: transform .12s, opacity .2s; display: inline-flex; align-items: center; gap: 8px; }
+  .principal:hover { transform: translateY(-1px); }
+  .principal:active { transform: scale(.97); }
+  .principal:disabled { opacity: .5; cursor: default; transform: none; }
+  .secondaire { height: 44px; padding: 0 16px; border-radius: 14px; border: 1px solid var(--trait); background: transparent; color: var(--doux); cursor: pointer; font-weight: 600; font-size: 14px; transition: color .2s, border-color .2s; }
+  .secondaire:hover { color: var(--texte); border-color: rgba(255,255,255,.2); }
+  .logiciel { display: flex; gap: 12px; align-items: center; padding: 10px 2px; border-top: 1px solid var(--trait); animation: glisse .4s both; }
+  .logiciel:first-child { border-top: 0; }
+  .etat-l { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+  .etat-l.ok { background: rgba(62,230,160,.15); color: var(--vert); }
+  .etat-l.ko { background: rgba(255,93,108,.14); color: var(--rouge); }
+  .etat-l.opt { background: rgba(255,181,71,.14); color: var(--ambre); }
+  .saisie { display: flex; gap: 8px; margin: 8px 0 4px; }
+  .saisie input { flex: 1; min-width: 0; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--trait); background: rgba(255,255,255,.05); color: var(--texte); font: inherit; font-size: 13.5px; transition: border-color .2s; }
+  .saisie input:focus { outline: none; border-color: var(--accent); }
+  textarea.prompt { width: 100%; height: 230px; resize: vertical; padding: 12px; border-radius: 14px; border: 1px solid var(--trait); background: #050811; color: #c9d3e6; font: 12px/1.5 Consolas, monospace; }
+  .msg-g { font-size: 13px; min-height: 18px; margin-top: 6px; }
+  .msg-g.ok { color: var(--vert); } .msg-g.ko { color: var(--rouge); }
+  .spin { width: 15px; height: 15px; border: 2px solid rgba(0,0,0,.25); border-top-color: currentColor; border-radius: 50%; animation: tourne .8s linear infinite; display: inline-block; }
+  .resume { margin: 4px 0 0; }
+  .resume .ligne { padding: 7px 4px; }
+  .notice { font-size: 14px; line-height: 1.55; }
+  .notice h1 { font-size: 20px; margin: 4px 0 10px; } .notice h2 { font-size: 16px; margin: 18px 0 6px; color: var(--accent); } .notice h3 { font-size: 14px; margin: 12px 0 4px; }
+  .notice p, .notice li { color: #c9d1e3; } .notice ul, .notice ol { padding-left: 20px; margin: 4px 0 8px; }
+  .notice code { font: 12.5px Consolas, monospace; background: rgba(255,255,255,.07); padding: 1px 5px; border-radius: 5px; }
+  .notice pre { margin: 8px 0; }
+</style>
+</head>
+<body>
+<div class="halo a"></div><div class="halo b"></div>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="degrade" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b7cff"/><stop offset="1" stop-color="#42d9ff"/></linearGradient>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="4.5" width="4" height="15" rx="1.5" fill="currentColor"/><rect x="14" y="4.5" width="4" height="15" rx="1.5" fill="currentColor"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.8v14.4a1 1 0 0 0 1.5.86l11.6-7.2a1 1 0 0 0 0-1.72L8.5 3.94A1 1 0 0 0 7 4.8z" fill="currentColor"/></symbol>
+    <symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 2.8 3.8 7.3v9.4L12 21.2l8.2-4.5V7.3L12 2.8zm0 2.3 5.9 3.2L12 11.6 6.1 8.3 12 5.1zM5.8 10l5.2 2.9v5.6l-5.2-2.9V10zm7.2 8.5v-5.6l5.2-2.9v5.6L13 18.5z" fill="currentColor"/></symbol>
+    <symbol id="i-micro" viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5zm6-3.5a1 1 0 1 0-2 0 4 4 0 0 1-8 0 1 1 0 1 0-2 0 6 6 0 0 0 5 5.9V19H8.5a1 1 0 1 0 0 2h7a1 1 0 1 0 0-2H13v-2.1a6 6 0 0 0 5-5.9z" fill="currentColor"/></symbol>
+    <symbol id="i-ok" viewBox="0 0 24 24"><path d="M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6L20.1 8.4 18.7 7z" fill="currentColor"/></symbol>
+    <symbol id="i-haut" viewBox="0 0 24 24"><path d="M12 5.5 5.5 12l1.4 1.4 4.1-4.1V19h2V9.3l4.1 4.1 1.4-1.4z" fill="currentColor"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.4 5 5 6.4 10.6 12 5 17.6 6.4 19l5.6-5.6 5.6 5.6 1.4-1.4-5.6-5.6L19 6.4 17.6 5 12 10.6z" fill="currentColor"/></symbol>
+    <symbol id="i-retour" viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z" fill="currentColor"/></symbol>
+    <symbol id="i-reglages" viewBox="0 0 24 24"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" fill="currentColor" transform="translate(-1 0)"/></symbol>
+    <symbol id="i-lune" viewBox="0 0 24 24"><path d="M14.5 2.5a9.5 9.5 0 1 0 7 15.9A8 8 0 0 1 14.5 2.5z" fill="currentColor"/></symbol>
+    <symbol id="i-oeil" viewBox="0 0 24 24"><path d="M12 5C6.5 5 2.7 9.4 1.6 12c1.1 2.6 4.9 7 10.4 7s9.3-4.4 10.4-7C21.3 9.4 17.5 5 12 5zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8z" fill="currentColor"/></symbol>
+    <symbol id="i-film" viewBox="0 0 24 24"><path d="M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm1 2v2h2V6H5zm12 0v2h2V6h-2zM5 10v4h2v-4H5zm12 0v4h2v-4h-2zM5 16v2h2v-2H5zm12 0v2h2v-2h-2zM9 6v12h6V6H9z" fill="currentColor"/></symbol>
+    <symbol id="i-ampoule" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2zm-3 18h6v1a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-1z" fill="currentColor"/></symbol>
+    <symbol id="i-baguette" viewBox="0 0 24 24"><path d="m14.6 3.3 1.1 2.3 2.3 1.1-2.3 1.1-1.1 2.3-1.1-2.3-2.3-1.1 2.3-1.1zM19 10l.8 1.7 1.7.8-1.7.8L19 15l-.8-1.7-1.7-.8 1.7-.8zM3.3 18.4 14.4 7.3l2.3 2.3L5.6 20.7a1.6 1.6 0 0 1-2.3-2.3z" fill="currentColor"/></symbol>
+    <symbol id="i-envoi" viewBox="0 0 24 24"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z" fill="currentColor"/></symbol>
+    <symbol id="i-ouvrir" viewBox="0 0 24 24"><path d="M14 3h7v7h-2V6.4l-9.3 9.3-1.4-1.4L17.6 5H14V3zM5 5h6v2H5v12h12v-6h2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" fill="currentColor"/></symbol>
+    <symbol id="i-cle" viewBox="0 0 24 24"><path d="M7.5 15.5a3.5 3.5 0 1 1 3.3-4.6H22v3h-2v2h-3v-2h-6.2a3.5 3.5 0 0 1-3.3 1.6zm0-2a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z" fill="currentColor"/></symbol>
+  </defs>
+</svg>
+
+<div class="app">
+  <div class="haut">
+    <div class="marque">ROUAGES <i>·</i> STUDIO</div>
+    <div class="vide"></div>
+    <button class="rond aide" title="Guide de démarrage" onclick="ouvrirGuide()">?</button>
+    <button class="rond roue" title="Réglages" onclick="tiroir(true)"><svg width="18" height="18"><use href="#i-reglages"/></svg></button>
+  </div>
+
+  <div class="nav" id="nav">
+  <button class="fleche g" title="Onglets précédents" onclick="defiler(-1)"><svg width="16" height="16" style="transform:rotate(-90deg)"><use href="#i-haut"/></svg></button>
+  <nav class="onglets" id="onglets">
+    <span class="indicateur" id="indicateur"></span>
+    <button class="onglet actif" data-page="rendus"><svg width="15" height="15"><use href="#i-cube"/></svg>Rendus</button>
+    <button class="onglet" data-page="medias"><svg width="15" height="15"><use href="#i-film"/></svg>Médias</button>
+    <button class="onglet" data-page="voix"><svg width="15" height="15"><use href="#i-micro"/></svg>Voix</button>
+    <button class="onglet" data-page="idees"><svg width="15" height="15"><use href="#i-ampoule"/></svg>Idées</button>
+    <button class="onglet" data-page="generation"><svg width="15" height="15"><use href="#i-baguette"/></svg>Génération</button>
+    <button class="onglet" data-page="publication"><svg width="15" height="15"><use href="#i-envoi"/></svg>Publication<span class="bientot-point" title="Bientôt"></span></button>
+  </nav>
+  <button class="fleche d" title="Onglets suivants" onclick="defiler(1)"><svg width="16" height="16" style="transform:rotate(90deg)"><use href="#i-haut"/></svg></button>
+  </div>
+
+  <!-- ====================== RENDUS ====================== -->
+  <div class="page active" id="page-rendus">
+    <section class="carte coeur" id="coeur">
+      <div class="etat"><span class="point"></span><span id="etat">Connexion…</span></div>
+      <div class="anneau" id="anneau">
+        <svg viewBox="0 0 236 236">
+          <circle class="piste" cx="118" cy="118" r="100"/>
+          <circle class="arc" id="arc" cx="118" cy="118" r="100" stroke-dasharray="628.3" stroke-dashoffset="628.3"/>
+          <circle class="piste-ep" cx="118" cy="118" r="113"/>
+          <circle class="arc-ep" id="arc-ep" cx="118" cy="118" r="113" stroke-dasharray="710" stroke-dashoffset="710"/>
+        </svg>
+        <div class="centre" id="centre"></div>
+      </div>
+      <div class="titre" id="titre"></div>
+      <div class="infos" id="infos"></div>
+      <div id="stats"></div>
+      <button class="bouton" id="bouton"></button>
+      <div class="lien" id="lien"></div>
+      <div id="alertes"></div>
+    </section>
+
+    <section class="carte bloc">
+      <div class="bloc-tete"><h3>Ensuite</h3><div class="vide"></div><a id="voir-tout" onclick="toutVoir = !toutVoir; dessinerFile(dernier)"></a></div>
+      <div id="file"></div>
+    </section>
+
+    <section class="carte bloc">
+      <div class="bloc-tete"><h3>Envoyé</h3><div class="vide"></div><span class="detail" id="aujourdhui"></span></div>
+      <div id="fait"></div>
+    </section>
+  </div>
+
+  <!-- ====================== MÉDIAS ====================== -->
+  <div class="page" id="page-medias">
+    <div class="bloc-tete" style="padding:0 6px 10px"><h3>Vidéos et voix envoyées</h3><div class="vide"></div><a onclick="chargerMedias()">Actualiser</a></div>
+    <div id="medias"><div class="rien">Chargement…</div></div>
+  </div>
+
+  <!-- ====================== VOIX ====================== -->
+  <div class="page" id="page-voix">
+    <section class="carte bientot">
+      <div class="grosse-icone"><svg width="30" height="30"><use href="#i-micro"/></svg></div>
+      <h2>Ta voix</h2>
+      <p>Le script <code>voix.py</code> lit la voix de référence et génère les prises de chaque vidéo.</p>
+      <div id="voix-ref" style="margin-top:14px;text-align:left"></div>
+      <div class="grille2">
+        <div class="tuile on"><span class="marque-on">ACTIVE</span><svg width="20" height="20" style="color:var(--violet)"><use href="#i-micro"/></svg><b>Voix de référence</b><span>un enregistrement « reference*.wav » dans le dossier des voix</span></div>
+        <div class="tuile"><span class="marque-off">BIENTÔT</span><svg width="20" height="20" style="color:var(--doux)"><use href="#i-micro"/></svg><b>Ajouter une voix</b><span>choisir parmi plusieurs voix, écoute d'un extrait</span></div>
+      </div>
+    </section>
+    <section class="carte bloc">
+      <div class="bloc-tete"><h3>Dernières voix générées</h3></div>
+      <div id="voix-recentes"><div class="rien">Chargement…</div></div>
+    </section>
+  </div>
+
+  <!-- ====================== IDÉES ====================== -->
+  <div class="page" id="page-idees">
+    <div id="sans-cle-idees"></div>
+    <section class="carte bloc">
+      <div class="bloc-tete"><h3>Catégories</h3><div class="vide"></div><a onclick="editerCategories()">Modifier</a></div>
+      <div class="chips gauche" id="cats"></div>
+      <button class="bouton go" id="btn-idees" onclick="proposerIdees()"><svg width="20" height="20"><use href="#i-ampoule"/></svg> Proposer des idées</button>
+      <div class="lien" id="info-idees">Claude propose 4 idées par catégorie choisie. Clique sur une idée pour la garder.</div>
+    </section>
+    <div id="idees-liste"></div>
+    <div class="barre-choix" id="barre-choix"></div>
+  </div>
+
+  <!-- ====================== GÉNÉRATION ====================== -->
+  <div class="page" id="page-generation">
+    <div id="sans-cle-gen"></div>
+    <section class="carte bloc" id="nouvelles"></section>
+    <section class="carte bloc">
+      <div class="bloc-tete"><h3>En création</h3><div class="vide"></div><span class="detail" id="depense"></span></div>
+      <div id="projets"><div class="rien">Rien pour l'instant. Choisis des idées dans l'onglet Idées.</div></div>
+    </section>
+    <section class="carte bloc">
+      <div class="bloc-tete"><h3>Comment ça marche</h3></div>
+      <div class="etapes" style="justify-content:flex-start;margin:0 0 10px"><span class="on">Idée</span><i>›</i><span class="on">Texte</span><i>›</i><span class="on">Ton avis</span><i>›</i><span class="on">Scène 3D</span><i>›</i><span class="on">Voix</span><i>›</i><span class="on">Rendu</span><i>›</i><span>Publication</span></div>
+      <p class="detail" style="display:block;padding:0 4px 10px">Claude écrit le texte et le découpage. Tu le relis (ou l'IA fait tout), puis il construit la scène Blender et dépose tout dans la file : ton PC génère la voix et rend la vidéo, comme d'habitude.</p>
+    </section>
+  </div>
+
+  <!-- ====================== PUBLICATION ====================== -->
+  <div class="page" id="page-publication">
+    <section class="carte bloc">
+      <div class="bloc-tete"><h3>Prêtes à publier</h3></div>
+      <div id="a-publier"><div class="rien">Les vidéos créées ici apparaîtront avec leur légende prête à copier.</div></div>
+    </section>
+    <section class="carte bloc">
+      <div class="bloc-tete"><h3>Compte de publication</h3><div class="vide"></div><span class="detail" id="pub-etat"></span></div>
+      <div class="champ"><label>Outil</label>
+        <div class="segments" id="pub-outil">
+          <button data-v="metricool" onclick="choisirOutil('metricool')">Metricool</button><button data-v="buffer" onclick="choisirOutil('buffer')">Buffer</button><button data-v="autre" onclick="choisirOutil('autre')">Autre</button>
+        </div></div>
+      <div class="champ"><label for="pub-compte">Identifiant du compte (ex. « blogId » Metricool)</label><input id="pub-compte" autocomplete="off"></div>
+      <div class="champ"><label for="pub-jeton">Jeton d'accès (API)</label><input id="pub-jeton" type="password" autocomplete="off" placeholder="gardé uniquement sur ce PC"></div>
+      <button class="petit" onclick="sauverPublication()">Enregistrer</button>
+      <p class="g-petit">La publication en un clic et le suivi des vues arrivent à l'étape suivante : tes réglages sont déjà gardés sur ce PC.</p>
+    </section>
+    <section class="carte bloc">
+      <div class="bloc-tete"><h3>Vues et stats</h3><div class="vide"></div><span class="etiquette" style="margin:0">BIENTÔT</span></div>
+      <div class="grille2" style="margin-top:0;padding-bottom:10px">
+        <div class="tuile"><b>YouTube Shorts</b><span>vues · likes · abonnés</span><div class="squelette" style="height:30px"></div></div>
+        <div class="tuile"><b>TikTok</b><span>vues · likes · partages</span><div class="squelette" style="height:30px"></div></div>
+        <div class="tuile"><b>Instagram</b><span>vues · likes · partages</span><div class="squelette" style="height:30px"></div></div>
+        <div class="tuile"><b>Total</b><span>28 derniers jours</span><div class="squelette" style="height:30px"></div></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="barre-bas" id="bas"></div>
+</div>
+
+<!-- lecteur de médias -->
+<div class="lecteur" id="lecteur" onclick="if (event.target === this) fermerLecteur()">
+  <div class="lecteur-boite">
+    <div class="lecteur-tete">
+      <div class="texte"><div class="nom" id="l-titre"></div><div class="detail" id="l-sous"></div></div>
+      <button class="petit" id="l-ouvrir" title="Ouvrir avec le lecteur de Windows"><svg width="13" height="13" style="vertical-align:-2px"><use href="#i-ouvrir"/></svg> Ouvrir</button>
+      <button class="rond" onclick="fermerLecteur()"><svg width="16" height="16"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="ecran" id="ecran"></div>
+    <div class="liste-lecteur" id="l-liste"></div>
+  </div>
+</div>
+
+<div id="calque">
+  <div class="voile" onclick="tiroir(false)"></div>
+  <aside class="tiroir">
+    <h2>Réglages<span class="vide"></span><button class="rond" onclick="tiroir(false)"><svg width="16" height="16"><use href="#i-x"/></svg></button></h2>
+    <div class="actions-tiroir">
+      <button class="petit" onclick="act('rafraichir'); toast('Je regarde la file…')">Regarder la file maintenant</button>
+      <button class="petit" onclick="act('ouvrir-dossier','rendus')">Dossier des vidéos</button>
+      <button class="petit" onclick="act('ouvrir-dossier','journal')">Dossier de l'app</button>
+    </div>
+    <h4>Installation</h4>
+    <div id="installation-resume"></div>
+    <div class="actions-tiroir">
+      <button class="petit" onclick="tiroir(false); ouvrirGuide()">Guide de démarrage</button>
+      <button class="petit" onclick="tiroir(false); ouvrirGuide('source')">Changer la file de tâches</button>
+      <button class="petit" onclick="tiroir(false); ouvrirGuide('cle')">Clé Claude</button>
+      <button class="petit" onclick="tiroir(false); ouvrirNotice()">Notice</button>
+    </div>
+    <h4>Programmes</h4>
+    <div id="reglages"></div>
+    <button class="petit" onclick="sauver()">Enregistrer</button> <span class="detail" id="ok-reglages"></span>
+    <h4>Journal</h4>
+    <pre id="journal"></pre>
+    <h4>Arrêt</h4>
+    <button class="petit" onclick="quitter()">Fermer Rouages Studio (arrête le rendu)</button>
+  </aside>
+</div>
+
+<!-- guide de démarrage -->
+<div class="guide" id="guide">
+  <div class="guide-boite">
+    <div class="g-haut"><div class="g-progres" id="g-progres"></div><button class="rond" title="Fermer le guide" onclick="fermerGuide()"><svg width="15" height="15"><use href="#i-x"/></svg></button></div>
+    <div id="g-contenu"></div>
+  </div>
+</div>
+<div class="toasts" id="toasts"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let dernier = null, toutVoir = false, tiroirOuvert = false, pageActive = 'rendus', mediasCharges = null;
+const ico = (n, t = 18) => `<svg width="${t}" height="${t}"><use href="#i-${n}"/></svg>`;
+function poser(id, html) {
+  const el = $(id);
+  if (el._h === html) return;
+  // après le premier affichage, les lignes ne rejouent plus leur animation d'entrée
+  el.classList.toggle('calme', el._h !== undefined && el._cle === cleListe(html));
+  el.innerHTML = html; el._h = html; el._cle = cleListe(html);
+}
+const cleListe = (html) => (html.match(/class="nom">[^<]*/g) || []).join('|');
+function toast(texte) {
+  const t = document.createElement('div');
+  t.className = 'toast'; t.innerHTML = texte;
+  $('toasts').appendChild(t);
+  setTimeout(() => { t.classList.add('sort'); setTimeout(() => t.remove(), 320); }, 2600);
+}
+async function poster(url, corps) {
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Rouages': '1' }, body: JSON.stringify(corps || {}) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.erreur || 'erreur ' + r.status);
+  return j;
+}
+function esc(t) { return String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function duree(s) {
+  if (s == null || !isFinite(s)) return '–';
+  s = Math.max(0, Math.round(s));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  if (h) return `${h} h ${String(m).padStart(2, '0')}`;
+  if (m) return `${m} min${m < 10 && sec ? ' ' + String(sec).padStart(2, '0') : ''}`;
+  return `${sec} s`;
+}
+const heure = (ms) => new Date(ms).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+function quand(ms) {
+  const d = new Date(ms), auj = new Date();
+  return d.toDateString() === auj.toDateString() ? heure(ms) : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+}
+
+// ---------- onglets ----------
+document.querySelectorAll('.onglet').forEach((b) => b.addEventListener('click', () => allerA(b.dataset.page)));
+function allerA(page) {
+  if (page === pageActive && document.querySelector('.page.active')) return placerIndicateur();
+  pageActive = page;
+  document.querySelectorAll('.onglet').forEach((b) => b.classList.toggle('actif', b.dataset.page === page));
+  document.querySelectorAll('.page').forEach((p) => p.classList.toggle('active', p.id === 'page-' + page));
+  const b = document.querySelector(`.onglet[data-page="${page}"]`);
+  if (b) b.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  placerIndicateur();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (page === 'medias' || page === 'voix') chargerMedias();
+  if (PAGES_CREATION.includes(page)) chargerCreation();
+}
+// barre d'onglets : trait qui glisse sous l'onglet actif, flèches et fondu sur les bords quand ça déborde
+function placerIndicateur() {
+  const b = document.querySelector('.onglet.actif'), i = $('indicateur');
+  if (!b) return;
+  i.style.width = (b.offsetWidth - 24) + 'px';
+  i.style.transform = `translateX(${b.offsetLeft + 12}px)`;
+}
+function majBords() {
+  const o = $('onglets'), n = $('nav');
+  const g = o.scrollLeft > 2, d = o.scrollLeft + o.clientWidth < o.scrollWidth - 2;
+  n.classList.toggle('peut-g', g); n.classList.toggle('peut-d', d);
+  o.style.setProperty('--fg', g ? '42px' : '0px'); o.style.setProperty('--fd', d ? '42px' : '0px');
+}
+function defiler(sens) { const o = $('onglets'); o.scrollBy({ left: sens * o.clientWidth * 0.7, behavior: 'smooth' }); }
+$('onglets').addEventListener('scroll', majBords, { passive: true });
+// la molette de la souris fait défiler les onglets de gauche à droite
+$('onglets').addEventListener('wheel', (ev) => {
+  const o = $('onglets');
+  if (o.scrollWidth <= o.clientWidth || Math.abs(ev.deltaX) > Math.abs(ev.deltaY)) return;
+  ev.preventDefault(); o.scrollBy({ left: ev.deltaY, behavior: 'smooth' });
+}, { passive: false });
+window.addEventListener('resize', () => { majBords(); placerIndicateur(); });
+// flèches gauche / droite du clavier pour changer d'onglet
+document.addEventListener('keydown', (ev) => {
+  if (!['ArrowLeft', 'ArrowRight'].includes(ev.key) || /INPUT|TEXTAREA/.test(document.activeElement.tagName) || $('guide').classList.contains('ouvert')) return;
+  const pages = [...document.querySelectorAll('.onglet')].map((b) => b.dataset.page);
+  const k = pages.indexOf(pageActive) + (ev.key === 'ArrowRight' ? 1 : -1);
+  if (k >= 0 && k < pages.length) allerA(pages[k]);
+});
+
+const MESSAGES = { 'pause-maintenant': 'Pause : le PC est libéré', reprendre: 'Ça repart', 'pause-fin-plan': 'Pause prévue à la fin du plan', prioriser: 'Passé en premier', ignorer: 'Mis de côté', retablir: 'Remis dans la file', reessayer: 'Nouvel essai demandé' };
+async function act(action, dossier) {
+  try { await poster('/api/action', { action, dossier }); if (MESSAGES[action]) toast(MESSAGES[action]); }
+  catch (e) { toast('Impossible : ' + esc(e.message)); }
+  setTimeout(maj, 120);
+}
+async function quitter() {
+  if (!confirm("Fermer le menu ? Le rendu s'arrête, les images faites sont gardées.")) return;
+  await act('quitter');
+  document.body.innerHTML = '<div class="app" style="text-align:center;padding-top:30vh"><div class="titre">Rouages Studio est fermé</div><div class="infos">Rouvre-le avec le raccourci « Rouages Studio » du Bureau.</div></div>';
+}
+function tiroir(o) {
+  tiroirOuvert = o;
+  $('calque').className = o ? 'ouvert' : '';
+  if (o) { chargerReglages(); majJournal(); chargerInstallation(); }
+}
+
+// ---------- lecteur ----------
+let liste = [], indexLecture = 0;
+function lire(items, i = 0, titre = '') {
+  liste = items; indexLecture = i;
+  $('l-titre').textContent = titre;
+  $('lecteur').classList.add('ouvert');
+  montrer();
+}
+function montrer() {
+  const m = liste[indexLecture];
+  const src = '/media/' + m.chemin.split('/').map(encodeURIComponent).join('/');
+  const video = /\.(mp4|webm)$/i.test(m.chemin);
+  const image = /\.(png|jpg)$/i.test(m.chemin) || m.image;
+  $('l-sous').textContent = m.titre + (liste.length > 1 ? ` · ${indexLecture + 1} / ${liste.length}` : '');
+  const ecran = $('ecran');
+  if (image) { ecran.className = 'ecran'; ecran.innerHTML = `<img src="${m.src || src}">`; }
+  else if (video) {
+    ecran.className = 'ecran';
+    ecran.innerHTML = `<video src="${src}" controls autoplay playsinline></video>`;
+    ecran.querySelector('video').onended = () => { if (indexLecture < liste.length - 1) { indexLecture++; montrer(); } };
+  } else {
+    ecran.className = 'ecran audio';
+    ecran.innerHTML = `<div class="onde">${Array.from({ length: 28 }, (_, k) => `<i style="animation-delay:${(k * 73) % 900}ms"></i>`).join('')}</div><audio src="${src}" controls autoplay></audio>`;
+    const a = ecran.querySelector('audio');
+    a.onplay = () => ecran.classList.remove('arret'); a.onpause = () => ecran.classList.add('arret');
+    a.onended = () => { ecran.classList.add('arret'); if (indexLecture < liste.length - 1 && m.enchainer) { indexLecture++; montrer(); } };
+  }
+  $('l-ouvrir').style.display = m.src ? 'none' : '';
+  $('l-ouvrir').onclick = () => act('ouvrir-fichier', m.chemin);
+  $('l-liste').innerHTML = liste.length > 1 ? liste.map((x, k) => `<button class="puce ${k === indexLecture ? 'actif' : ''} ${/\.(mp3|wav)$/i.test(x.chemin) ? 'v' : ''}" onclick="indexLecture=${k}; montrer()">${esc(x.titre)}</button>`).join('') : '';
+}
+function fermerLecteur() { $('lecteur').classList.remove('ouvert'); setTimeout(() => { if (!$('lecteur').classList.contains('ouvert')) $('ecran').innerHTML = ''; }, 300); }
+function voirApercu() {
+  lire([{ chemin: 'apercu.png', titre: 'dernière image rendue', image: true, src: '/apercu.png?t=' + Date.now() }], 0, dernier && dernier.enCours ? dernier.enCours.nom : 'Aperçu');
+}
+
+// ---------- page Rendus ----------
+const COULEURS = { travail: '#42d9ff', pause: '#ffb547', occupe: '#ff5d6c', reessai: '#ff5d6c', attente: '#3ee6a0', configuration: '#a78bfa' };
+// le pourcentage monte en douceur au lieu de sauter
+let pctAffiche = null, pctCible = 0, pctAnim = 0;
+function animerPct() {
+  cancelAnimationFrame(pctAnim);
+  const pas = () => {
+    const el = document.getElementById('pct-val');
+    if (!el) { pctAffiche = null; return; }
+    if (pctAffiche === null) pctAffiche = pctCible;
+    pctAffiche += (pctCible - pctAffiche) * 0.12;
+    if (Math.abs(pctCible - pctAffiche) < 0.05) pctAffiche = pctCible;
+    el.textContent = Math.floor(pctAffiche);
+    if (pctAffiche !== pctCible) pctAnim = requestAnimationFrame(pas);
+  };
+  pctAnim = requestAnimationFrame(pas);
+}
+let derniereApercu = -1;
+
+function rendre(e) {
+  dernier = e;
+  const c = e.enCours;
+  const enPause = !e.enMarche || e.etat === 'pause-cloud';
+  document.documentElement.style.setProperty('--accent', COULEURS[enPause ? 'pause' : e.etat] || '#42d9ff');
+  const coeur = $('coeur');
+  coeur.classList.toggle('travail', e.etat === 'travail' && e.enMarche);
+  coeur.classList.toggle('pause-etat', enPause);
+
+  let etat = 'Ton PC travaille';
+  if (e.etat === 'travail' && !e.enMarche) etat = 'Mise en pause…';
+  else if (!e.enMarche) etat = 'En pause · ton PC est libre';
+  else if (e.etat === 'pause-cloud') etat = 'En pause (demandée par le cloud)';
+  else if (e.etat === 'attente') etat = 'Tout est à jour';
+  else if (e.etat === 'occupe') etat = 'Le GPU est déjà occupé';
+  else if (e.etat === 'reessai') etat = 'Petit souci, nouvel essai…';
+  else if (e.etat === 'releve' || e.etat === 'demarrage') etat = 'Je regarde la file…';
+  else if (e.etat === 'configuration') etat = 'À configurer';
+  poser('etat', esc(etat));
+
+  let frac = 0, fracEp = 0, indet = false, centre = '', titre = '', infos = '', stats = '';
+  if (c) {
+    titre = esc(c.nom || c.ep);
+    const depuis = (Date.now() - c.depuis) / 1000;
+    if (c.type === '3d') {
+      frac = c.total ? c.images / c.total : 0;
+      fracEp = c.plans ? (c.plansFaits + frac) / c.plans : 0;
+      indet = !c.total;
+      centre = c.total ? `<div class="pct"><span id="pct-val">${Math.floor(pctAffiche ?? frac * 100)}</span><small>%</small></div><div class="sous-pct">plan ${c.plan} sur ${c.plans}</div>`
+                       : `<div class="sous-pct">Blender démarre…</div><div class="sous-pct">plan ${c.plan} sur ${c.plans}</div>`;
+      if (/Encodage|Envoi/.test(c.etape || '')) { indet = false; frac = 1; centre = `<div class="icone-centre">${ico('ok', 46)}</div><div class="sous-pct">${/Envoi/.test(c.etape) ? 'envoi…' : 'fabrication du MP4…'}</div>`; }
+      infos = `${c.images} / ${c.total || '?'} images · ${c.plansFaits} / ${c.plans} plans envoyés`;
+      const apercu = c.apercu ? `<div class="apercu" onclick="voirApercu()" title="Voir la dernière image"><img id="img-apercu"></div>` : '';
+      stats = `<div class="stats ${c.apercu ? '' : 'sans-apercu'}">${apercu}
+        <div class="stat"><b>${c.secondesParImage ? c.secondesParImage + ' s' : '–'}</b><span>par image</span></div>
+        <div class="stat"><b>${duree(c.eta)}</b><span>restant (plan)</span></div>
+        <div class="stat"><b>${c.eta ? heure(Date.now() + c.eta * 1000) : '–'}</b><span>fin du plan</span></div>
+        <div class="stat"><b>${duree(depuis)}</b><span>depuis le début</span></div></div>`;
+    } else {
+      frac = c.fraction || 0;
+      indet = !c.fraction;
+      centre = `<div class="icone-centre">${ico('micro', 50)}</div><div class="sous-pct">voix, 3 prises</div>`;
+      infos = 'Voix en cours';
+      stats = `<div class="stats sans-apercu" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat"><b>${c.eta != null ? '~' + duree(c.eta) : '–'}</b><span>restant</span></div>
+        <div class="stat"><b>${c.eta != null ? heure(Date.now() + c.eta * 1000) : '–'}</b><span>fin vers</span></div>
+        <div class="stat"><b>${duree(depuis)}</b><span>depuis le début</span></div></div>`;
+    }
+  } else if (e.etat === 'configuration') {
+    centre = `<div class="icone-centre">${ico('reglages', 50)}</div>`;
+    titre = 'Bienvenue';
+    infos = 'Dis-moi où trouver les vidéos à fabriquer, et c’est parti.';
+  } else if (enPause) {
+    centre = `<div class="icone-centre">${ico('lune', 50)}</div>`;
+    titre = 'Pause';
+    const suiv = e.file.find((t) => t.dossier === e.prochaine);
+    infos = suiv ? `Ça reprendra avec <b>${esc(suiv.nom)}</b>, là où ça s'est arrêté.` : 'Rien ne tourne, tu peux jouer tranquille.';
+  } else if (e.etat === 'occupe') {
+    centre = `<div class="icone-centre">${ico('oeil', 50)}</div>`;
+    titre = 'J’attends mon tour';
+    infos = `${esc(e.occupePar)} tourne déjà sur le PC.`;
+  } else {
+    centre = `<div class="icone-centre">${ico('ok', 50)}</div>`;
+    titre = 'Rien à rendre';
+    infos = `Je surveille la file (prochain coup d'œil vers ${heure(e.prochaineReleve)}).`;
+  }
+  $('anneau').classList.toggle('indet', indet);
+  $('arc').style.strokeDashoffset = 628.3 * (1 - Math.min(1, frac));
+  $('arc-ep').style.strokeDashoffset = 710 * (1 - Math.min(1, fracEp));
+  poser('centre', centre);
+  if (c && c.type === '3d' && c.total) { pctCible = frac * 100; animerPct(); } else pctAffiche = null;
+  poser('titre', titre);
+  poser('infos', infos);
+  poser('stats', stats);
+  // l'aperçu ne se recharge que quand une nouvelle image est finie
+  const img = $('img-apercu');
+  if (img && c && (c.images !== derniereApercu || !img.src)) { derniereApercu = c.images; img.src = '/apercu.png?n=' + c.images + '&t=' + Date.now(); }
+
+  const travaille = e.enMarche;
+  const config = e.etat === 'configuration';
+  poser('bouton', config ? `${ico('reglages', 20)} Ouvrir le guide de démarrage` : travaille ? `${ico('pause', 20)} Mettre en pause` : `${ico('play', 20)} Reprendre`);
+  $('bouton').className = 'bouton ' + (travaille && !config ? 'pause' : 'go');
+  $('bouton').onclick = () => (config ? ouvrirGuide() : act(travaille ? 'pause-maintenant' : 'reprendre'));
+  let lien;
+  if (config) lien = '3 minutes, tout est expliqué.';
+  else if (travaille && c && c.type === '3d') lien = e.pauseFinPlan
+    ? `Pause prévue à la fin de ce plan · <a onclick="act('annuler-pause-fin-plan')">annuler</a>`
+    : `ou <a onclick="act('pause-fin-plan')">finir ce plan d'abord</a>, puis pause`;
+  else if (travaille) lien = 'La pause libère le PC en 2 secondes, rien n’est perdu.';
+  else lien = 'Ça repart à l’image exacte où ça s’est arrêté.';
+  poser('lien', lien);
+
+  const al = [];
+  if (e.etat === 'occupe') al.push(`<div class="alerte r"><span>Une autre session utilise le GPU. Je prends la suite dès qu'elle a fini.</span><button class="petit" onclick="if(confirm('Arrêter l’autre rendu maintenant ? Ses images faites restent sur le disque.')) act('liberer-gpu')">Prendre la main</button></div>`);
+  if (e.messageGit) al.push(`<div class="alerte a"><span>${esc(e.messageGit)}</span></div>`);
+  for (const t of e.file.filter((t) => t.erreur && t.erreur.bloquee)) al.push(`<div class="alerte r"><span><b>${esc(t.nom)}</b> n'a pas marché (${esc(t.erreur.message)}).</span><button class="petit" onclick="act('reessayer','${t.dossier}')">Réessayer</button></div>`);
+  poser('alertes', al.join(''));
+
+  dessinerFile(e);
+
+  poser('aujourdhui', e.faitAujourdhui ? `${e.faitAujourdhui} aujourd'hui` : '');
+  window._hist = e.historique;
+  poser('fait', e.historique.length ? e.historique.slice(0, 5).map((h, i) => {
+    const m = h.medias && h.medias.length;
+    return `<div class="ligne ${m ? 'clic' : ''}" style="animation-delay:${i * 40}ms" ${m ? `onclick="lireHistorique(${i})" title="Lire"` : ''}>
+      <div class="badge ${m ? 'bjeu' : 'bok'}">${ico(m ? 'play' : 'ok', m ? 16 : 18)}</div>
+      <div class="texte"><div class="nom">${esc(h.nom || h.quoi)}</div><div class="detail">${h.type === 'voix' ? 'voix, ' + (m || 3) + ' prises' : h.plan ? `plan ${h.plan} sur ${h.plans}` : esc(h.quoi)}${h.images ? ' · ' + h.images + ' images' : ''}${h.secondes ? ' · ' + duree(h.secondes) : ''}</div></div>
+      <div class="detail">${quand(h.quand)}</div></div>`;
+  }).join('') : '<div class="rien">Rien encore.</div>');
+  poser('bas', `Rouages Studio v${e.version}${e.source ? ' · file : ' + (e.source.type === 'git' ? 'dépôt git' : 'dossier local') : ''}`);
+  if (!guideVu && e.premierLancementFait === false) { guideVu = true; ouvrirGuide(); }
+}
+function lireHistorique(i) {
+  const h = window._hist[i];
+  lire(h.medias.map((chemin) => ({ chemin, titre: titreFichier(chemin) })), 0, h.nom || h.quoi);
+}
+function titreFichier(chemin) {
+  const f = chemin.split('/').pop();
+  let m = f.match(/plan(\d+)/i); if (m) return 'Plan ' + m[1];
+  m = f.match(/prise(\d+)/i); if (m) return 'Prise ' + m[1];
+  return f;
+}
+
+function ligneTache(t, i, c) {
+  const enCours = c && c.dossier === t.dossier;
+  const pts = t.type === '3d' && t.plans ? `<span class="points">${Array.from({ length: t.plans }, (_, k) => `<i class="${k < t.plansFaits ? 'ok' : ''}"></i>`).join('')}</span>` : '';
+  let detail = t.type === '3d' ? `${pts} ${t.plansFaits}/${t.plans} plans` : 'voix';
+  if (enCours) detail = 'en cours…';
+  if (t.statut === 'attente') detail = 'pas encore prêt';
+  if (t.statut === 'illisible') detail = 'demande illisible';
+  if (t.ignore) detail = 'mis de côté';
+  const gestes = [];
+  if (t.ignore) gestes.push(`<button class="geste" title="Remettre dans la file" onclick="act('retablir','${t.dossier}')">${ico('retour', 15)}</button>`);
+  else if (t.statut === 'pret' && !enCours) {
+    if (i > 0) gestes.push(`<button class="geste" title="Faire en premier" onclick="act('prioriser','${t.dossier}')">${ico('haut', 15)}</button>`);
+    gestes.push(`<button class="geste" title="Mettre de côté" onclick="act('ignorer','${t.dossier}')">${ico('x', 15)}</button>`);
+  }
+  return `<div class="ligne" style="animation-delay:${Math.min(i, 8) * 40}ms;${t.statut !== 'pret' || t.ignore ? 'opacity:.55' : ''}">
+    <div class="badge ${t.type === '3d' ? 'b3d' : 'bvoix'}">${ico(t.type === '3d' ? 'cube' : 'micro')}</div>
+    <div class="texte"><div class="nom">${esc(t.nom)}</div><div class="detail">${detail}</div></div>
+    <div class="gestes">${gestes.join('')}</div></div>`;
+}
+function dessinerFile(e) {
+  if (!e) return;
+  const c = e.enCours;
+  const prets = e.file.filter((t) => t.statut === 'pret' && !t.ignore && !(c && c.dossier === t.dossier));
+  const autres = e.file.filter((t) => !(t.statut === 'pret' && !t.ignore));
+  const montrer = toutVoir ? prets : prets.slice(0, 4);
+  let html = montrer.length ? montrer.map((t, i) => ligneTache(t, i, c)).join('') : `<div class="rien">${c ? 'Rien après celui-ci.' : 'La file est vide.'}</div>`;
+  if (toutVoir && autres.length) html += `<div class="sep">Pas encore prêts</div>` + autres.map((t, i) => ligneTache(t, i, c)).join('');
+  poser('file', html);
+  const cache = prets.length - montrer.length + (toutVoir ? 0 : autres.length);
+  poser('voir-tout', toutVoir ? 'Réduire' : (cache > 0 ? `Tout voir (${prets.length + autres.length})` : ''));
+}
+
+// ---------- pages Médias et Voix ----------
+async function chargerMedias() {
+  try { mediasCharges = await (await fetch('/api/medias')).json(); } catch (e) { return; }
+  const eps = mediasCharges.episodes;
+  window._eps = eps;
+  $('medias').innerHTML = eps.length ? eps.map((e, i) => `<section class="carte ep-carte" style="animation-delay:${Math.min(i, 10) * 40}ms">
+      <div class="ep-tete">
+        ${e.videos.length ? `<button class="jouer" title="Regarder tous les plans à la suite" onclick="lireEp(${i}, 'videos', 0)">${ico('play', 18)}</button>` : `<div class="badge bvoix">${ico('micro')}</div>`}
+        <div class="texte"><div class="nom">${esc(e.nom)}</div><div class="detail">${e.ep} · ${e.videos.length ? e.videos.length + (e.videos.length > 1 ? ' plans' : ' plan') : 'pas encore de vidéo'} · ${e.voix.length} voix</div></div>
+        <div class="detail">${quand(e.date)}</div>
+      </div>
+      <div class="puces">
+        ${e.videos.map((v, k) => `<button class="puce" onclick="lireEp(${i}, 'videos', ${k})">${ico('film', 13)}${esc(v.titre)}</button>`).join('')}
+        ${e.voix.map((v, k) => `<button class="puce v" onclick="lireEp(${i}, 'voix', ${k})">${ico('micro', 13)}${esc(v.titre)}</button>`).join('')}
+      </div></section>`).join('') : '<div class="rien">Aucun média pour le moment.</div>';
+
+  const ref = mediasCharges.voix || [];
+  $('voix-ref').innerHTML = ref.length ? ref.map((v, k) => `<div class="ligne clic" onclick="lire([{chemin:'${v.chemin}', titre:'${esc(v.nom)}'}], 0, 'Voix de référence')">
+      <div class="badge bvoix">${ico('play', 16)}</div><div class="texte"><div class="nom">${v.officielle ? 'Écouter la voix officielle' : esc(v.nom)}</div><div class="detail">${esc(v.nom)}</div></div></div>`).join('') : '';
+  const recentes = eps.filter((e) => e.voix.length).slice(0, 6);
+  $('voix-recentes').innerHTML = recentes.length ? recentes.map((e, i) => `<div class="ligne clic" onclick="lireEp(${eps.indexOf(e)}, 'voix', 0)">
+      <div class="badge bvoix">${ico('play', 16)}</div><div class="texte"><div class="nom">${esc(e.nom)}</div><div class="detail">${e.voix.length} prises · ${e.ep}</div></div><div class="detail">${quand(e.date)}</div></div>`).join('') : '<div class="rien">Aucune voix pour le moment.</div>';
+}
+function lireEp(i, sorte, k) {
+  const e = window._eps[i];
+  lire(e[sorte].map((x) => ({ chemin: x.chemin, titre: x.titre })), k, e.nom);
+}
+
+async function maj() {
+  try { rendre(await (await fetch('/api/etat')).json()); }
+  catch (e) { poser('etat', 'Fermé'); poser('titre', 'Rouages Studio ne répond pas'); poser('infos', 'Rouvre-le avec le raccourci « Rouages Studio » du Bureau.'); }
+}
+async function majJournal() {
+  if (!tiroirOuvert) return;
+  try {
+    const r = await (await fetch('/api/journal')).json();
+    const p = $('journal'); const bas = p.scrollTop + p.clientHeight >= p.scrollHeight - 20;
+    p.textContent = r.lignes.join('\n'); if (bas) p.scrollTop = p.scrollHeight;
+  } catch (e) {}
+}
+
+const CHAMPS = [
+  ['blender', 'Blender', 'text', 'Vide = trouvé tout seul.'],
+  ['ffmpeg', 'ffmpeg', 'text', 'Vide = celui du PATH.'],
+  ['python', 'Python des voix', 'text', 'Vide = trouvé tout seul.'],
+  ['dossierVoix', 'Dossier des voix (contient voix.py)', 'text', 'Vide = pc-voix\\voix-officielle à côté de la file, s’il existe.'],
+  ['voixReference', 'Voix de référence', 'text', 'Nom du fichier reference*.wav à mettre en avant. Vide = automatique.'],
+  ['releveMinutes', 'Regarder la file toutes les (minutes)', 'number', ''],
+  ['ignorerAvant', 'Ignorer les tâches d’avant le (AAAA-MM-JJ)', 'text', 'Vide = tout prendre.'],
+  ['crf', 'Qualité MP4 (16 = très bonne)', 'number', ''],
+  ['voixAvantRendus', 'Faire les voix avant les rendus 3D', 'checkbox'],
+  ['empecherVeille', 'Empêcher la veille pendant un rendu', 'checkbox'],
+];
+async function chargerReglages() {
+  const c = await (await fetch('/api/reglages')).json();
+  $('reglages').innerHTML = CHAMPS.map(([k, l, type, aide]) => type === 'checkbox'
+    ? `<label class="case"><input type="checkbox" id="r-${k}" ${c[k] ? 'checked' : ''}> ${l}</label>`
+    : `<div class="champ"><label for="r-${k}">${l}</label><input type="${type}" id="r-${k}" value="${esc(c[k])}">${aide ? `<small>${aide}</small>` : ''}</div>`).join('');
+}
+async function sauver() {
+  const o = {};
+  for (const [k, , type] of CHAMPS) { const el = $('r-' + k); o[k] = type === 'checkbox' ? el.checked : type === 'number' ? Number(el.value) : el.value.trim(); }
+  await fetch('/api/reglages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Rouages': '1' }, body: JSON.stringify(o) });
+  $('ok-reglages').textContent = 'Enregistré ✓'; setTimeout(() => ($('ok-reglages').textContent = ''), 2500);
+}
+async function chargerInstallation() {
+  try {
+    const i = await (await fetch('/api/installation')).json();
+    poser('installation-resume', `<div class="detail">File de tâches</div><div class="chemin">${i.source ? esc(i.source.chemin) + (i.source.type === 'git' ? ' (dépôt git)' : ' (dossier local)') : 'aucune'}</div>
+      <div class="detail">Dossier de travail (images en cours)</div><div class="chemin">${esc(i.travail)}</div>
+      <div class="detail">Clé Claude : ${i.cleClaude ? 'enregistrée ✓' : 'aucune (facultative)'}</div>`);
+  } catch (e) {}
+}
+
+// ====================== GUIDE DE DÉMARRAGE ======================
+let guideVu = false;
+const guide = { nom: 'bienvenue', info: null, source: null };
+const ETAPES = ['bienvenue', 'logiciels', 'travail', 'source', 'cle', 'fini'];
+async function ouvrirGuide(etape = 'bienvenue') {
+  guideVu = true;
+  $('guide').classList.add('ouvert');
+  $('g-contenu').innerHTML = '<div class="rien" style="padding:30px;text-align:center"><span class="spin" style="color:var(--texte)"></span></div>';
+  try { guide.info = await (await fetch('/api/installation')).json(); } catch (e) { guide.info = null; }
+  allerEtape(etape);
+}
+function fermerGuide() { $('guide').classList.remove('ouvert'); }
+async function majInfo() { guide.info = await (await fetch('/api/installation')).json(); }
+function allerEtape(nom, retour) {
+  const avant = ETAPES.indexOf(guide.nom);
+  guide.nom = nom;
+  const k = ETAPES.indexOf(nom === 'prompt' ? 'bienvenue' : nom);
+  $('g-progres').innerHTML = ETAPES.map((_, j) => `<i class="${j <= k ? 'on' : ''}"></i>`).join('');
+  const c = $('g-contenu');
+  c.className = 'g-etape' + (retour || (ETAPES.indexOf(nom) >= 0 && ETAPES.indexOf(nom) < avant) ? ' retour' : '');
+  c.innerHTML = (ETAPES_HTML[nom] || ETAPES_HTML.bienvenue)();
+  void c.offsetWidth; c.style.animation = 'none'; void c.offsetWidth; c.style.animation = '';
+  const premier = c.querySelector('input:not([type=hidden])');
+  if (premier && nom !== 'bienvenue') setTimeout(() => premier.focus(), 350);
+}
+const pied = (retour, suivant, libelle = 'Suivant') => `<div class="g-pied">
+  ${retour ? `<button class="secondaire" onclick="allerEtape('${retour}', true)">Retour</button>` : ''}<div class="vide"></div>
+  <button class="principal" id="g-suivant" onclick="${suivant}">${libelle}</button></div>`;
+const parcourir = (champ, titre) => guide.info && guide.info.windows
+  ? `<button class="petit" onclick="choisirDossier('${champ}', '${titre}')">Parcourir…</button>` : '';
+async function choisirDossier(champ, titre) {
+  toast('Choisis le dossier dans la fenêtre qui s’ouvre…');
+  try { const r = await poster('/api/installation/choisir-dossier', { titre }); if (r.chemin) $(champ).value = r.chemin; } catch (e) { toast(esc(e.message)); }
+}
+function occupe(oui, texte) {
+  const b = $('g-suivant'); if (!b) return;
+  b.disabled = oui;
+  if (oui) { b._t = b.innerHTML; b.innerHTML = `<span class="spin"></span> ${texte || 'Un instant…'}`; } else if (b._t) b.innerHTML = b._t;
+}
+function message(texte, ok) { const m = $('g-msg'); if (m) { m.className = 'msg-g ' + (ok ? 'ok' : 'ko'); m.innerHTML = texte; } }
+
+function textePrompt() {
+  return `Installe et configure l'application « Rouages Studio » sur mon PC Windows.
+Je l'ai téléchargée : cherche le dossier qui contient « Rouages-Studio.bat » (en général dans Téléchargements ou sur le Bureau, parfois encore dans un fichier .zip à décompresser).
+
+1. Lis le fichier GUIDE.md de ce dossier : il explique tout (format de la file de tâches, réglages).
+2. Vérifie ce qui est installé et installe ce qui manque avec winget, en me montrant chaque commande :
+   - Node.js LTS (OpenJS.NodeJS.LTS) : obligatoire
+   - Blender (BlenderFoundation.Blender) et ffmpeg (Gyan.FFmpeg) : pour les rendus 3D
+   - Git (Git.Git) : seulement si la file de tâches est un dépôt GitHub
+   - Python 3 : seulement si je veux générer des voix avec un script voix.py
+3. Lance « Rouages-Studio.bat » dans ce dossier : il crée le raccourci « Rouages Studio » sur le Bureau et ouvre l'app (http://localhost:4747).
+4. Aide-moi à finir le guide de démarrage de l'app : dossier de travail (au moins 20 Go libres), file de tâches (dépôt GitHub privé ou dossier local), clé API Claude (facultative).
+5. Vérifie à la fin que l'onglet Rendus affiche « Tout est à jour » ou une tâche en cours.
+
+Règles : ne mets jamais ma clé API, mes mots de passe ni mes infos personnelles dans un dépôt git, un fichier partagé ou un message public. Demande-moi avant toute action que tu ne peux pas annuler.`;
+}
+async function copierPrompt() {
+  const t = $('g-prompt');
+  try { await navigator.clipboard.writeText(t.value); } catch (e) { t.select(); document.execCommand('copy'); }
+  toast(`${ico('ok', 15)} Copié : colle-le dans Claude`);
+}
+
+const ETAPES_HTML = {
+  bienvenue: () => `<div class="grosse-icone">${ico('cube', 30)}</div>
+    <h2>Bienvenue dans Rouages Studio</h2>
+    <p class="g-intro">Ton PC fabrique les vidéos tout seul : voix, rendus 3D Blender, MP4. Pause et reprise à l'image près, sans rien perdre. Il faut environ <b>3 minutes</b> pour l'installer.</p>
+    <button class="choix" onclick="allerEtape('logiciels')"><div class="badge b3d">${ico('reglages')}</div><div class="texte"><div class="nom">Je l'installe moi-même</div><div class="detail">5 petites étapes guidées</div></div></button>
+    <button class="choix" onclick="allerEtape('prompt')"><div class="badge bvoix">${ico('baguette')}</div><div class="texte"><div class="nom">Claude l'installe pour moi</div><div class="detail">un texte à copier dans Claude (Claude Code, ou Claude avec accès à ton PC)</div></div></button>
+    <p class="g-petit">Tu peux rouvrir ce guide à tout moment avec le bouton « ? » en haut.</p>`,
+
+  prompt: () => `<h2>Claude l'installe pour toi</h2>
+    <p class="g-intro">Copie ce texte et colle-le dans <b>Claude Code</b> (ou une session Claude qui a accès à ton PC). Il installe ce qui manque et t'aide à remplir ce guide.</p>
+    <textarea class="prompt" id="g-prompt" readonly>${esc(textePrompt())}</textarea>
+    <div class="g-pied"><button class="secondaire" onclick="allerEtape('bienvenue', true)">Retour</button><div class="vide"></div>
+      <button class="petit" style="height:44px;padding:0 14px" onclick="allerEtape('logiciels')">Continuer seul</button>
+      <button class="principal" onclick="copierPrompt()">${ico('ok', 16)} Copier</button></div>`,
+
+  logiciels: () => {
+    const l = (guide.info && guide.info.logiciels) || {};
+    const lignes = ['node', 'blender', 'ffmpeg', 'git', 'python'].filter((k) => l[k]).map((k, i) => {
+      const x = l[k];
+      const classe = x.ok ? 'ok' : x.obligatoire ? 'ko' : 'opt';
+      const bouton = !x.ok && guide.info.windows ? `<button class="petit" onclick="installer('${k}')">Installer</button>` : '';
+      return `<div class="logiciel" style="animation-delay:${i * 60}ms"><div class="etat-l ${classe}">${ico(x.ok ? 'ok' : 'x', 15)}</div>
+        <div class="texte"><div class="nom">${esc(x.nom)}${x.obligatoire ? '' : ' <span class="detail" style="display:inline">· facultatif</span>'}</div>
+        <div class="detail">${x.ok ? esc(x.version || x.chemin || 'installé') : esc(x.role)}</div></div>${bouton}</div>`;
+    }).join('');
+    const manque = Object.values(l).filter((x) => x.obligatoire && !x.ok).length;
+    return `<h2>Les logiciels</h2>
+      <p class="g-intro">${manque ? `Il en manque ${manque}. « Installer » ouvre une fenêtre qui s'en occupe (winget, l'installeur de Windows), puis clique sur « Vérifier ».` : 'Tout ce qu’il faut pour les rendus est là.'}</p>
+      <div>${lignes}</div>
+      <div class="g-pied"><button class="secondaire" onclick="allerEtape('bienvenue', true)">Retour</button><div class="vide"></div>
+        <button class="petit" style="height:44px;padding:0 14px" onclick="verifierLogiciels()">Vérifier</button>
+        <button class="principal" id="g-suivant" onclick="allerEtape('travail')">Suivant</button></div>`;
+  },
+
+  travail: () => `<h2>Dossier de travail</h2>
+    <p class="g-intro">Les images en cours de rendu y sont rangées (quelques Go par vidéo, effacées dès que la vidéo est prête). Choisis un disque avec de la place.</p>
+    <div class="saisie"><input id="g-travail" value="${esc(guide.info ? guide.info.travail : '')}" placeholder="C:\\Rouages\\travail">${parcourir('g-travail', 'Dossier de travail de Rouages Studio')}</div>
+    <div class="msg-g" id="g-msg"></div>
+    ${pied('logiciels', 'validerTravail()')}`,
+
+  source: () => {
+    const s = guide.info && guide.info.source;
+    const opt = (mode, icone, nom, detail, champs) => `<button class="choix ${guide.source === mode ? 'actif' : ''}" onclick="choisirSource('${mode}')"><div class="badge b3d">${ico(icone)}</div><div class="texte"><div class="nom">${nom}</div><div class="detail">${detail}</div></div></button>
+      <div class="choix-detail ${guide.source === mode ? 'ouvert' : ''}" id="d-${mode}">${champs}</div>`;
+    if (!guide.source) guide.source = s ? 'garder' : 'cloner';
+    return `<h2>La file de tâches</h2>
+      <p class="g-intro">C'est la liste des vidéos à fabriquer : un dossier <code>cloud-vers-pc</code> avec une demande par vidéo. Les vidéos finies arrivent dans <code>pc-vers-cloud</code>.</p>
+      ${s ? opt('garder', 'ok', 'Garder celle-ci', esc(s.chemin), '') : ''}
+      ${opt('cloner', 'envoi', 'Un dépôt GitHub', 'l’app le copie sur ton PC, récupère les tâches et renvoie les vidéos',
+        `<div class="saisie"><input id="g-url" placeholder="https://github.com/compte/ma-file.git"></div>
+         <div class="saisie"><input id="g-parent" placeholder="Ranger la copie dans… (ex. C:\\Rouages)">${parcourir('g-parent', 'Où ranger la copie du dépôt')}</div>
+         <p class="g-petit">Dépôt privé : Git te demandera de te connecter à GitHub la première fois.</p>`)}
+      ${opt('existant', 'film', 'Un dossier déjà sur mon PC', 'une copie d’un dépôt, ou un dossier qui contient cloud-vers-pc',
+        `<div class="saisie"><input id="g-existant" placeholder="C:\\…\\ma-file">${parcourir('g-existant', 'Dossier de la file de tâches')}</div>`)}
+      ${opt('local', 'cube', 'Un nouveau dossier simple', 'sans GitHub : tu y déposes les demandes à la main',
+        `<div class="saisie"><input id="g-local" placeholder="C:\\Rouages\\file">${parcourir('g-local', 'Nouveau dossier pour la file de tâches')}</div>`)}
+      ${opt('plus-tard', 'lune', 'Plus tard', 'tu pourras la choisir dans les réglages', '')}
+      <div class="msg-g" id="g-msg"></div>
+      ${pied('travail', 'validerSource()')}`;
+  },
+
+  cle: () => {
+    const deja = guide.info && guide.info.cleClaude;
+    return `<h2>Clé Claude <span class="detail" style="display:inline">· facultative</span></h2>
+      <p class="g-intro">Elle servira aux onglets <b>Idées</b> et <b>Génération</b> (bientôt). Les rendus, les voix et les médias marchent <b>sans</b>. La clé reste sur ce PC, dans les réglages de l'app : elle n'est jamais envoyée ailleurs qu'à Anthropic.</p>
+      ${deja ? `<div class="alerte a" style="margin:0 0 10px"><span>Une clé est déjà enregistrée ✓</span><button class="petit" onclick="retirerCle()">Retirer</button></div>` : ''}
+      <div class="saisie"><input id="g-cle" type="password" autocomplete="off" placeholder="sk-ant-…"><button class="petit" onclick="testerCle()">Tester</button></div>
+      <div class="msg-g" id="g-msg"></div>
+      <p class="g-petit">Pour en créer une : <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> › API keys › Create key.</p>
+      ${pied('source', 'validerCle()', deja ? 'Suivant' : 'Suivant')}`;
+  },
+
+  fini: () => {
+    const i = guide.info || {};
+    const l = i.logiciels || {};
+    const manque = Object.values(l).filter((x) => x.obligatoire && !x.ok).map((x) => x.nom);
+    const ligne = (ok, nom, detail) => `<div class="ligne"><div class="badge ${ok ? 'bok' : 'bvoix'}">${ico(ok ? 'ok' : 'x', 16)}</div><div class="texte"><div class="nom">${nom}</div><div class="detail">${detail}</div></div></div>`;
+    return `<div class="grosse-icone" style="color:var(--vert)">${ico('ok', 34)}</div>
+      <h2 style="text-align:center">C'est prêt</h2>
+      <div class="resume">
+        ${ligne(!manque.length, 'Logiciels', manque.length ? 'il manque : ' + esc(manque.join(', ')) : 'tout est installé')}
+        ${ligne(true, 'Dossier de travail', esc(i.travail || ''))}
+        ${ligne(!!i.source, 'File de tâches', i.source ? esc(i.source.chemin) : 'à choisir plus tard')}
+        ${ligne(!!i.cleClaude, 'Clé Claude', i.cleClaude ? 'enregistrée' : 'pas de clé (facultative)')}
+      </div>
+      <p class="g-petit" style="text-align:center">La notice complète est dans les réglages (roue dentée) › Notice.</p>
+      ${pied('cle', 'terminerGuide()', 'C’est parti')}`;
+  },
+};
+
+async function verifierLogiciels() { occupe(true, 'Vérification…'); await majInfo(); allerEtape('logiciels'); }
+async function installer(k) {
+  try { await poster('/api/installation/installer', { logiciel: k }); toast('Installation lancée dans une autre fenêtre. Clique sur « Vérifier » quand elle est finie.'); }
+  catch (e) { toast(esc(e.message)); }
+}
+async function validerTravail() {
+  occupe(true);
+  try {
+    const v = $('g-travail').value.trim();
+    await poster('/api/installation/travail', { chemin: v });
+    await majInfo(); allerEtape('source');
+  } catch (e) { occupe(false); message(esc(e.message)); }
+}
+function choisirSource(mode) {
+  guide.source = mode;
+  document.querySelectorAll('#g-contenu .choix').forEach((b) => b.classList.toggle('actif', b.getAttribute('onclick').includes(`'${mode}'`)));
+  document.querySelectorAll('#g-contenu .choix-detail').forEach((d) => d.classList.toggle('ouvert', d.id === 'd-' + mode));
+  const champ = document.querySelector(`#d-${mode} input`);
+  if (champ) setTimeout(() => champ.focus(), 300);
+}
+async function validerSource() {
+  const m = guide.source;
+  if (m === 'garder' || m === 'plus-tard') return allerEtape('cle');
+  const corps = m === 'cloner' ? { mode: 'cloner', url: $('g-url').value, parent: $('g-parent').value }
+    : m === 'existant' ? { mode: 'existant', chemin: $('g-existant').value } : { mode: 'local', chemin: $('g-local').value };
+  occupe(true, m === 'cloner' ? 'Copie du dépôt…' : 'Un instant…');
+  try { await poster('/api/installation/source', corps); await majInfo(); toast(`${ico('ok', 15)} File de tâches branchée`); allerEtape('cle'); }
+  catch (e) { occupe(false); message(esc(e.message)); }
+}
+async function testerCle() {
+  const v = $('g-cle').value.trim();
+  if (!v) return message('Colle ta clé d’abord.');
+  message('<span class="spin"></span> Test…', true);
+  try {
+    const r = await poster('/api/installation/cle-claude', { cle: v });
+    await majInfo();
+    message(r.ok ? 'Clé valide et enregistrée ✓' : esc(r.erreur), r.ok);
+    return r.ok;
+  } catch (e) { message(esc(e.message)); return false; }
+}
+async function retirerCle() { await poster('/api/installation/cle-claude', { cle: '' }); await majInfo(); allerEtape('cle'); toast('Clé retirée'); }
+async function validerCle() {
+  if ($('g-cle').value.trim()) { occupe(true, 'Test…'); const ok = await testerCle(); occupe(false); if (!ok) return; }
+  allerEtape('fini');
+}
+async function terminerGuide() {
+  try { await poster('/api/installation/terminer'); } catch (e) {}
+  fermerGuide(); toast(`${ico('ok', 15)} Rouages Studio est prêt`); act('rafraichir');
+}
+
+// ====================== CRÉATION (Idées, Génération, Publication) ======================
+let creation = null, catsChoisies = null, ideesEnCours = false;
+const genOpts = { voix: null, style: '3d', mode: null };
+const PAGES_CREATION = ['idees', 'generation', 'publication'];
+async function chargerCreation() {
+  try { creation = await (await fetch('/api/creation')).json(); } catch (e) { return; }
+  if (!catsChoisies) catsChoisies = new Set(creation.reglages.categories);
+  if (genOpts.mode === null) genOpts.mode = creation.reglages.modeCreation;
+  if (genOpts.voix === null) genOpts.voix = creation.reglages.voixParDefaut || ((creation.voix || []).find((v) => v.officielle) || {}).nom || '';
+  dessinerIdees(); dessinerNouvelles(); dessinerProjets(); dessinerPublication();
+}
+const sansCle = () => creation && !creation.cle ? `<div class="alerte a" style="margin:0 0 14px"><span><b>Branche ta clé Claude</b> pour que l'app propose des idées et écrive les vidéos. Les rendus marchent sans.</span><button class="petit" onclick="ouvrirGuide('cle')">Brancher</button></div>` : '';
+const dollars = (d) => d < 0.01 ? '< 0,01 $' : d.toFixed(2).replace('.', ',') + ' $';
+
+function dessinerIdees() {
+  poser('sans-cle-idees', sansCle());
+  poser('cats', creation.reglages.categories.map((c) => `<span class="chip choix-cat ${catsChoisies.has(c) ? 'on' : ''}" onclick="basculerCat(this.textContent)">${esc(c)}</span>`).join(''));
+  const b = $('btn-idees');
+  b.disabled = ideesEnCours || !creation.cle;
+  b.style.opacity = b.disabled ? .6 : 1;
+  poser('btn-idees', ideesEnCours ? '<span class="spin"></span> Claude réfléchit…' : `${ico('ampoule', 20)} ${creation.idees.length ? 'Nouvelles idées' : 'Proposer des idées'}`);
+  const sel = new Set(creation.selection);
+  const parCat = {};
+  for (const i of creation.idees) (parCat[i.categorie] = parCat[i.categorie] || []).push(i);
+  poser('idees-liste', Object.keys(parCat).map((c) => `<section class="carte bloc">
+      <div class="cat-tete"><h3>${esc(c)}</h3><div class="vide"></div><button class="geste" style="opacity:1" title="D'autres idées pour cette catégorie" data-c="${esc(c)}" onclick="proposerIdees([this.dataset.c])">${ico('retour', 15)}</button></div>
+      ${parCat[c].map((i, k) => `<div class="idee ${sel.has(i.id) ? 'on' : ''}" style="animation-delay:${k * 50}ms" onclick="basculerIdee('${i.id}')">
+        <div class="coche">${ico('ok', 15)}</div>
+        <div class="texte"><div class="nom" style="white-space:normal">${esc(i.titre)}</div><div class="accroche">« ${esc(i.accroche)} »</div><div class="pourquoi">${esc(i.pourquoi)}</div></div></div>`).join('')}
+    </section>`).join(''));
+  const n = sel.size;
+  $('barre-choix').classList.toggle('on', n > 0);
+  poser('barre-choix', n ? `<button class="principal" onclick="allerA('generation')">${ico('baguette', 18)} Créer ${n > 1 ? 'ces ' + n + ' vidéos' : 'cette vidéo'}</button>` : '');
+}
+function basculerCat(c) {
+  catsChoisies.has(c) ? catsChoisies.delete(c) : catsChoisies.add(c);
+  if (!catsChoisies.size) catsChoisies.add(c);
+  dessinerIdees();
+}
+async function editerCategories() {
+  const t = prompt('Tes catégories, séparées par des virgules :', creation.reglages.categories.join(', '));
+  if (t === null) return;
+  const l = t.split(',').map((x) => x.trim()).filter(Boolean).slice(0, 12);
+  if (!l.length) return;
+  await poster('/api/creation/reglages', { categories: l });
+  catsChoisies = new Set(l); await chargerCreation(); toast('Catégories enregistrées');
+}
+async function proposerIdees(cats) {
+  if (ideesEnCours) return;
+  ideesEnCours = true; dessinerIdees();
+  try {
+    const r = await poster('/api/creation/idees', { categories: cats || [...catsChoisies] });
+    toast(`${ico('ok', 15)} ${r.nouvelles} idées · ${dollars(r.dollars)}`);
+  } catch (e) { toast(esc(e.message)); }
+  ideesEnCours = false; await chargerCreation();
+}
+async function basculerIdee(id) {
+  const s = new Set(creation.selection);
+  s.has(id) ? s.delete(id) : s.add(id);
+  creation.selection = [...s]; dessinerIdees(); dessinerNouvelles();
+  try { await poster('/api/creation/selection', { ids: creation.selection }); } catch (e) {}
+}
+
+function dessinerNouvelles() {
+  poser('sans-cle-gen', sansCle());
+  const choisies = creation.idees.filter((i) => creation.selection.includes(i.id));
+  const el = $('nouvelles');
+  el.style.display = choisies.length ? '' : 'none';
+  if (!choisies.length) return poser('nouvelles', '');
+  const voix = creation.voix || [];
+  poser('nouvelles', `<div class="bloc-tete"><h3>Nouvelles vidéos</h3><div class="vide"></div><span class="detail">${choisies.length} choisie${choisies.length > 1 ? 's' : ''}</span></div>
+    ${choisies.map((i) => `<div class="ligne"><div class="badge b3d">${ico('ampoule', 16)}</div><div class="texte"><div class="nom">${esc(i.titre)}</div><div class="detail">${esc(i.categorie)}</div></div><button class="geste" style="opacity:1" title="Retirer" onclick="basculerIdee('${i.id}')">${ico('x', 14)}</button></div>`).join('')}
+    <div class="champ" style="margin-top:12px"><label>Voix</label>${voix.length
+      ? `<select class="selecteur" onchange="genOpts.voix=this.value">${voix.map((v) => `<option ${v.nom === genOpts.voix ? 'selected' : ''}>${esc(v.nom)}</option>`).join('')}</select>`
+      : '<div class="detail">Aucune voix de référence trouvée (réglages › Dossier des voix). La voix sera à générer avec ta commande habituelle.</div>'}</div>
+    <div class="champ"><label>Style</label><div class="grille2" style="margin-top:4px">
+      <div class="tuile clic on"><span class="marque-on">CHOISI</span>${ico('cube', 20)}<b>3D Blender</b><span>scène construite par Claude, rendue sur ton PC</span></div>
+      <div class="tuile off"><span class="marque-off">BIENTÔT</span>${ico('baguette', 20)}<b>Schémas animés</b><span>motion design</span></div></div></div>
+    <div class="champ"><label>Qui décide</label><div class="segments">
+      <button class="${genOpts.mode === 'avis' ? 'on' : ''}" onclick="genOpts.mode='avis'; dessinerNouvelles()">Je relis le texte</button>
+      <button class="${genOpts.mode === 'auto' ? 'on' : ''}" onclick="genOpts.mode='auto'; dessinerNouvelles()">L'IA fait tout</button></div></div>
+    <label class="case"><input type="checkbox" ${creation.reglages.apprendre ? 'checked' : ''} onchange="poster('/api/creation/reglages',{apprendre:this.checked}).then(chargerCreation)"> L'app apprend de mes remarques</label>
+    <button class="bouton go" style="margin:6px 0 10px" onclick="lancerCreation()" ${creation.cle ? '' : 'disabled'}>${ico('baguette', 20)} Lancer la création</button>`);
+}
+async function lancerCreation() {
+  try {
+    const r = await poster('/api/creation/creer', { ids: creation.selection, voix: genOpts.voix, style: genOpts.style, mode: genOpts.mode });
+    toast(`${ico('ok', 15)} ${r.projets} vidéo${r.projets > 1 ? 's' : ''} en création`);
+  } catch (e) { toast(esc(e.message)); }
+  await chargerCreation();
+}
+
+const ETATS_P = { texte: ['Texte', 'bleu'], 'a-valider': ['À relire', 'ambre'], scene: ['Scène 3D', 'bleu'], depot: ['Envoi', 'bleu'], envoye: ['Dans la file', 'vert'], erreur: ['Problème', 'rouge'] };
+function dessinerProjets() {
+  const d = creation.depenses;
+  poser('depense', d.appelsMois ? `Claude ce mois : ${dollars(d.mois)}` : '');
+  const ps = creation.projets;
+  poser('projets', ps.length ? ps.map((p, k) => {
+    const [lib, coul] = ETATS_P[p.etat] || [p.etat, 'bleu'];
+    const s = p.script;
+    let corps = '';
+    if (p.etat === 'a-valider' && s) corps = `<div class="script">
+        <div class="voixoff">${esc(s.texte_voix)}</div>
+        <ol>${s.plans.map((x) => `<li><b>${esc(x.secondes)} s</b> · ${esc(x.image)}</li>`).join('')}</ol>
+        <textarea id="rq-${p.id}" placeholder="Une remarque ? (ex. accroche plus directe, plan 3 plus lent…)"></textarea>
+        <div class="rangee"><button class="petit" onclick="projet('${p.id}','corriger')">Corriger</button><button class="principal" style="height:36px;padding:0 16px;font-size:13.5px" onclick="projet('${p.id}','valider')">${ico('ok', 15)} Valider</button></div></div>`;
+    else if (p.etat === 'erreur') corps = `<div class="script"><div class="rangee"><button class="petit" onclick="projet('${p.id}','reessayer')">Réessayer</button><button class="petit" onclick="if(confirm('Supprimer ce projet ?')) projet('${p.id}','supprimer')">Supprimer</button></div></div>`;
+    return `<div class="projet" style="animation-delay:${Math.min(k, 6) * 40}ms">
+      <div class="projet-tete"><div class="badge ${p.etat === 'envoye' ? 'bok' : 'b3d'}">${p.travaille ? '<span class="spin" style="color:var(--cyan)"></span>' : ico(p.etat === 'envoye' ? 'ok' : 'baguette', 16)}</div>
+        <div class="texte"><div class="nom">${esc(p.titre)}</div><div class="detail">${esc(p.ep)} · ${esc(p.message || '')}${p.cout ? ' · ' + dollars(p.cout) : ''}</div></div>
+        <span class="pastille ${coul}">${lib}</span></div>${corps}</div>`;
+  }).join('') : '<div class="rien">Rien pour l\'instant. Choisis des idées dans l\'onglet Idées.</div>');
+}
+async function projet(id, action) {
+  const t = $('rq-' + id);
+  try { await poster('/api/creation/projet', { id, action, texte: t ? t.value.trim() : '' }); toast(action === 'valider' ? 'Validé : Claude construit la scène' : action === 'corriger' ? 'Claude réécrit le texte' : 'C’est noté'); }
+  catch (e) { toast(esc(e.message)); }
+  await chargerCreation();
+}
+
+function dessinerPublication() {
+  const pret = creation.projets.filter((p) => p.etat === 'envoye' && p.script);
+  poser('a-publier', pret.length ? pret.map((p) => `<div class="ligne"><div class="badge bok">${ico('envoi', 16)}</div>
+      <div class="texte"><div class="nom">${esc(p.titre)}</div><div class="detail" style="display:block;white-space:normal">${esc(p.script.legende)} ${esc((p.script.hashtags || []).map((h) => h.startsWith('#') ? h : '#' + h).join(' '))}</div></div>
+      <button class="petit" onclick="copierLegende('${p.id}')">Copier</button></div>`).join('') : '<div class="rien">Les vidéos créées ici apparaîtront avec leur légende prête à copier.</div>');
+  const pub = creation.publication || {};
+  document.querySelectorAll('#pub-outil button').forEach((b) => b.classList.toggle('on', b.dataset.v === (pub.outil || 'metricool')));
+  const c = $('pub-compte'); if (document.activeElement !== c && !c._touche) c.value = pub.compte || '';
+  poser('pub-etat', pub.jetonEnregistre ? 'jeton enregistré ✓' : '');
+}
+async function copierLegende(id) {
+  const p = creation.projets.find((x) => x.id === id);
+  const t = `${p.script.legende}\n\n${(p.script.hashtags || []).map((h) => h.startsWith('#') ? h : '#' + h).join(' ')}`;
+  try { await navigator.clipboard.writeText(t); toast(`${ico('ok', 15)} Légende copiée`); } catch (e) { toast('Copie impossible'); }
+}
+function choisirOutil(v) { creation.publication.outil = v; dessinerPublication(); }
+async function sauverPublication() {
+  try {
+    await poster('/api/publication/reglages', { outil: creation.publication.outil || 'metricool', compte: $('pub-compte').value.trim(), jeton: $('pub-jeton').value.trim() });
+    $('pub-jeton').value = ''; toast(`${ico('ok', 15)} Compte enregistré sur ce PC`); await chargerCreation();
+  } catch (e) { toast(esc(e.message)); }
+}
+setInterval(() => { if (PAGES_CREATION.includes(pageActive) && !document.hidden) chargerCreation(); }, 2500);
+
+// ---------- notice (GUIDE.md affiché joliment) ----------
+function mdVersHtml(md) {
+  const lignes = md.replace(/\r/g, '').split('\n');
+  let html = '', liste = null, code = false, bloc = [], sous = false;
+  const enLigne = (t) => esc(t).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  const finSous = () => { if (sous) { html += '</ul></li>'; sous = false; } };
+  const fermer = () => { finSous(); if (liste) { html += `</${liste}>`; liste = null; } };
+  for (const l of lignes) {
+    if (l.startsWith('```')) { if (code) { html += `<pre>${esc(bloc.join('\n'))}</pre>`; bloc = []; } else fermer(); code = !code; continue; }
+    if (code) { bloc.push(l); continue; }
+    let m;
+    if ((m = l.match(/^(#{1,3})\s+(.*)/))) { fermer(); html += `<h${m[1].length}>${enLigne(m[2])}</h${m[1].length}>`; }
+    else if (liste === 'ol' && (m = l.match(/^\s+[-*]\s+(.*)/))) { if (!sous) { html = html.replace(/<\/li>$/, '') + '<ul>'; sous = true; } html += `<li>${enLigne(m[1])}</li>`; }
+    else if ((m = l.match(/^\s*[-*]\s+(.*)/))) { if (liste !== 'ul') { fermer(); html += '<ul>'; liste = 'ul'; } html += `<li>${enLigne(m[1])}</li>`; }
+    else if ((m = l.match(/^\s*\d+\.\s+(.*)/))) { finSous(); if (liste !== 'ol') { fermer(); html += '<ol>'; liste = 'ol'; } html += `<li>${enLigne(m[1])}</li>`; }
+    else if (!l.trim()) fermer();
+    else { fermer(); html += `<p>${enLigne(l)}</p>`; }
+  }
+  fermer();
+  return html;
+}
+async function ouvrirNotice() {
+  $('guide').classList.add('ouvert');
+  $('g-progres').innerHTML = '';
+  const c = $('g-contenu'); c.className = 'g-etape';
+  c.innerHTML = '<div class="rien">Chargement…</div>';
+  try { c.innerHTML = `<div class="notice">${mdVersHtml(await (await fetch('/guide')).text())}</div>`; } catch (e) { c.innerHTML = '<div class="rien">Notice introuvable.</div>'; }
+}
+document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { fermerLecteur(); tiroir(false); if (guide.nom === 'notice' || $('g-progres').innerHTML === '') fermerGuide(); } });
+requestAnimationFrame(() => { placerIndicateur(); majBords(); });
+document.fonts && document.fonts.ready.then(() => { placerIndicateur(); majBords(); });
+maj(); setInterval(maj, 1000); setInterval(majJournal, 3000);
+</script>
+</body>
+</html>
